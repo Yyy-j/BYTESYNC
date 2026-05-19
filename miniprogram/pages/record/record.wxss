@@ -1,18 +1,28 @@
 /* pages/record/record.wxss */
 
-.container {
-  padding: var(--spacing-xl) var(--page-padding);
-  padding-bottom: calc(var(--spacing-xxl) + constant(safe-area-inset-bottom));
-  padding-bottom: calc(var(--spacing-xxl) + env(safe-area-inset-bottom));
+.page {
   min-height: 100vh;
   background: var(--color-bg);
 }
 
-.header {
-  margin-bottom: var(--spacing-xxl);
+/* ══════════════════════════════════════
+   IDLE 状态
+══════════════════════════════════════ */
+
+.idle-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: var(--spacing-xl) var(--page-padding) 0;
+  padding-bottom: calc(var(--spacing-xxl) + constant(safe-area-inset-bottom));
+  padding-bottom: calc(var(--spacing-xxl) + env(safe-area-inset-bottom));
 }
 
-.title {
+.idle-header {
+  padding-top: var(--spacing-xl);
+}
+
+.page-title {
   display: block;
   font-size: var(--font-size-xl);
   font-weight: 700;
@@ -20,34 +30,195 @@
   line-height: 1.2;
 }
 
-.subtitle {
+.page-subtitle {
   display: block;
   font-size: var(--font-size-sm);
   color: var(--color-text-tertiary);
   margin-top: var(--spacing-sm);
 }
 
-.camera-section {
+.idle-camera {
+  flex: 1;
   display: flex;
-  justify-content: center;
-  padding: var(--spacing-xl) 0;
-}
-
-.section-title {
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  letter-spacing: 2rpx;
-  margin-bottom: var(--spacing-md);
-}
-
-.empty-hint {
-  display: flex;
+  align-items: center;
   justify-content: center;
   padding: var(--spacing-xxl) 0;
 }
 
-.empty-text {
+.idle-footer {
+  display: flex;
+  justify-content: center;
+  padding-bottom: var(--spacing-xl);
+}
+
+.footer-hint {
   font-size: var(--font-size-sm);
   color: var(--color-text-tertiary);
+  letter-spacing: 1rpx;
 }
+
+/* ══════════════════════════════════════
+   LOADING 状态
+══════════════════════════════════════ */
+
+.loading-page {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.loading-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  filter: blur(20rpx);
+  transform: scale(1.08);
+  opacity: 0.6;
+}
+
+.loading-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(247, 248, 246, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-lg);
+}
+
+/* 三点弹跳动画 */
+.loading-dots {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  animation: dot-bounce 1.2s ease-in-out infinite;
+}
+
+.dot-1 { animation-delay: 0s; }
+.dot-2 { animation-delay: 0.2s; }
+.dot-3 { animation-delay: 0.4s; }
+
+@keyframes dot-bounce {
+  0%, 80%, 100% {
+    transform: translateY(0) scale(0.7);
+    opacity: 0.4;
+  }
+  40% {
+    transform: translateY(-14rpx) scale(1);
+    opacity: 1;
+  }
+}
+
+.loading-text {
+  display: block;
+  font-size: var(--font-size-md);
+  font-weight: 500;
+  color: var(--color-text-primary);
+  text-align: center;
+}
+
+.loading-subtext {
+  display: block;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  text-align: center;
+  margin-top: calc(var(--spacing-xs) * -1);
+}
+
+/* ══════════════════════════════════════
+   RESULT 状态
+══════════════════════════════════════ */
+
+.result-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: var(--spacing-xl) var(--page-padding) 0;
+  padding-bottom: calc(200rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(200rpx + env(safe-area-inset-bottom));
+}
+
+.result-header {
+  padding-top: var(--spacing-xl);
+  margin-bottom: var(--spacing-lg);
+}
+
+.result-title {
+  display: block;
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.result-card-wrap {
+  flex: 1;
+}
+
+/* 底部操作区（固定 + 安全区） */
+.result-actions {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: var(--spacing-md) var(--page-padding);
+  padding-bottom: calc(var(--spacing-md) + constant(safe-area-inset-bottom));
+  padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
+  background: var(--color-bg);
+  border-top: 1rpx solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.btn-primary {
+  width: 100%;
+  height: 96rpx;
+  line-height: 96rpx;
+  background: var(--color-primary);
+  color: #ffffff;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  border: none;
+  box-shadow: var(--shadow-btn);
+  letter-spacing: 2rpx;
+}
+
+.btn-primary::after {
+  border: none;
+}
+
+.btn-ghost {
+  width: 100%;
+  height: 80rpx;
+  line-height: 80rpx;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  border: none;
+  border-radius: var(--radius-full);
+}
+
+.btn-ghost::after {
+  border: none;
+}
+

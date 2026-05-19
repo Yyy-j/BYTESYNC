@@ -1,20 +1,58 @@
 <!-- pages/record/record.wxml -->
-<view class="container">
+<view class="page">
 
-  <view class="header">
-    <text class="title">拍一餐</text>
-    <text class="subtitle">记录你的每一口</text>
+  <!-- ══════════════ IDLE 状态 ══════════════ -->
+  <view wx:if="{{state === 'idle'}}" class="idle-page">
+    <view class="idle-header">
+      <text class="page-title">拍一餐</text>
+      <text class="page-subtitle">饭前拍一下，轻轻记录这一餐</text>
+    </view>
+
+    <view class="idle-camera">
+      <camera-button bind:tap="onCameraTap" />
+    </view>
+
+    <view class="idle-footer">
+      <text class="footer-hint">今天还没有记录</text>
+    </view>
   </view>
 
-  <view class="camera-section">
-    <camera-button bind:tap="onCameraTap" />
+  <!-- ══════════════ LOADING 状态 ══════════════ -->
+  <view wx:elif="{{state === 'loading'}}" class="loading-page">
+    <image class="loading-bg" src="{{tempImageUrl}}" mode="aspectFill" />
+    <view class="loading-mask">
+      <view class="loading-content">
+        <view class="loading-dots">
+          <view class="dot dot-1"></view>
+          <view class="dot dot-2"></view>
+          <view class="dot dot-3"></view>
+        </view>
+        <text class="loading-text">正在估算这份料理…</text>
+        <text class="loading-subtext">马上就好</text>
+      </view>
+    </view>
   </view>
 
-  <view class="list-section">
-    <text class="section-title">今日记录</text>
-    <!-- TODO: 接入数据后渲染 food-list-item 列表 -->
-    <view class="empty-hint">
-      <text class="empty-text">还没有记录，拍一餐开始吧</text>
+  <!-- ══════════════ RESULT 状态 ══════════════ -->
+  <view wx:elif="{{state === 'result'}}" class="result-page">
+    <view class="result-header">
+      <text class="result-title">识别完成</text>
+    </view>
+
+    <view class="result-card-wrap">
+      <food-card
+        name="{{foodData.name}}"
+        calories="{{foodData.calories}}"
+        protein="{{foodData.protein}}"
+        fat="{{foodData.fat}}"
+        carbs="{{foodData.carbs}}"
+        imageUrl="{{foodData.imageUrl}}"
+      />
+    </view>
+
+    <view class="result-actions">
+      <button class="btn-primary" bind:tap="onSave">记录这一餐</button>
+      <button class="btn-ghost" bind:tap="onRetake">重新拍摄</button>
     </view>
   </view>
 
