@@ -1,15 +1,72 @@
 <!-- pages/summary/summary.wxml -->
-<view class="container">
+<view class="page">
 
-  <view class="header">
-    <text class="title">今日总览</text>
-    <date-switcher date="{{date}}" bind:change="onDateChange" />
+  <!-- ── Header ── -->
+  <view class="page-header">
+    <text class="page-title">今日总览</text>
+    <text class="page-subtitle">看看我们今天吃得怎么样</text>
   </view>
 
-  <view class="cards-section">
-    <!-- TODO: 接入数据后动态渲染两人卡片 -->
-    <summary-card />
-    <summary-card />
+  <!-- ── 日期切换 ── -->
+  <view class="section">
+    <date-switcher date="{{currentDate}}" bind:change="onDateChange" />
+  </view>
+
+  <!-- ── 双人数据卡片 ── -->
+  <view class="section">
+    <view class="cards-row">
+      <view class="card-half">
+        <summary-card
+          userName="{{me.name}}"
+          role="{{me.role}}"
+          calories="{{me.calories}}"
+          calorieGoal="{{me.calorieGoal}}"
+          protein="{{me.protein}}"
+          proteinGoal="{{me.proteinGoal}}"
+          carbs="{{me.carbs}}"
+          carbsGoal="{{me.carbsGoal}}"
+          fat="{{me.fat}}"
+          fatGoal="{{me.fatGoal}}"
+        />
+      </view>
+      <view class="card-half">
+        <summary-card
+          userName="{{ta.name}}"
+          role="{{ta.role}}"
+          calories="{{ta.calories}}"
+          calorieGoal="{{ta.calorieGoal}}"
+          protein="{{ta.protein}}"
+          proteinGoal="{{ta.proteinGoal}}"
+          carbs="{{ta.carbs}}"
+          carbsGoal="{{ta.carbsGoal}}"
+          fat="{{ta.fat}}"
+          fatGoal="{{ta.fatGoal}}"
+        />
+      </view>
+    </view>
+  </view>
+
+  <!-- ── 今日记录列表 ── -->
+  <view class="section">
+    <text class="section-label">今日记录</text>
+    <view wx:if="{{foods.length > 0}}" class="food-list">
+      <food-list-item
+        wx:for="{{foods}}"
+        wx:key="id"
+        id="{{item.id}}"
+        name="{{item.name}}"
+        calories="{{item.calories}}"
+        protein="{{item.protein}}"
+        carbs="{{item.carbs}}"
+        fat="{{item.fat}}"
+        user="{{item.user}}"
+        userName="{{item.userName}}"
+        time="{{item.time}}"
+      />
+    </view>
+    <view wx:else class="empty-hint">
+      <text class="empty-text">今天还没有记录</text>
+    </view>
   </view>
 
 </view>

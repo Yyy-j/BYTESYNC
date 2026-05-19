@@ -1,28 +1,73 @@
 /* pages/summary/summary.wxss */
 
-.container {
-  padding: var(--spacing-xl) var(--page-padding);
-  padding-bottom: calc(var(--spacing-xxl) + constant(safe-area-inset-bottom));
-  padding-bottom: calc(var(--spacing-xxl) + env(safe-area-inset-bottom));
+.page {
   min-height: 100vh;
   background: var(--color-bg);
+  padding-bottom: calc(var(--spacing-xxl) + constant(safe-area-inset-bottom));
+  padding-bottom: calc(var(--spacing-xxl) + env(safe-area-inset-bottom));
 }
 
-.header {
-  margin-bottom: var(--spacing-xl);
+/* ── Header ── */
+.page-header {
+  padding: calc(var(--spacing-xl) + 16rpx) var(--page-padding) var(--spacing-sm);
 }
 
-.title {
+.page-title {
   display: block;
   font-size: var(--font-size-xl);
   font-weight: 700;
   color: var(--color-text-primary);
   line-height: 1.2;
+}
+
+.page-subtitle {
+  display: block;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  margin-top: var(--spacing-sm);
+}
+
+/* ── 通用 Section ── */
+.section {
+  padding: var(--spacing-md) var(--page-padding);
+}
+
+/* ── 双人卡片并排 ── */
+.cards-row {
+  display: flex;
+  gap: var(--spacing-md);
+}
+
+.card-half {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── 列表区标题 ── */
+.section-label {
+  display: block;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  letter-spacing: 2rpx;
   margin-bottom: var(--spacing-md);
 }
 
-.cards-section {
+/* ── 食物列表（整体圆角卡片容器） ── */
+.food-list {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+/* ── 空状态 ── */
+.empty-hint {
   display: flex;
-  flex-direction: column;
-  gap: var(--spacing-lg);
+  justify-content: center;
+  padding: var(--spacing-xxl) 0;
+}
+
+.empty-text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
 }

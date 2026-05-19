@@ -1,8 +1,14 @@
 <!-- components/food-list-item/food-list-item.wxml -->
 <view class="food-list-item" bind:tap="onTap">
-  <view class="item-main">
+  <view class="item-header">
     <text class="item-name">{{name}}</text>
+    <text class="item-time">{{time}}</text>
+  </view>
+  <view class="item-row2">
     <text class="item-calories">{{calories}} kcal</text>
+    <view wx:if="{{user}}" class="user-badge {{user}}">
+      <text class="user-badge-text">{{userName}}</text>
+    </view>
   </view>
   <view class="item-macros">
     <text class="macro-tag protein">蛋白 {{protein}}g</text>

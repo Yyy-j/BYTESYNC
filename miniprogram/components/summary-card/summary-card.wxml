@@ -1,18 +1,17 @@
 <!-- components/summary-card/summary-card.wxml -->
-<view class="summary-card">
+<view class="summary-card {{role}}">
   <view class="card-header">
-    <image class="avatar" src="{{avatar}}" mode="aspectFill" />
-    <view class="user-info">
-      <text class="user-name">{{userName}}</text>
-      <text class="user-calories">
-        <text class="cal-current">{{calories}}</text>
-        <text class="cal-sep"> / {{calorieGoal}} kcal</text>
-      </text>
-    </view>
+    <text class="user-name">{{userName}}</text>
     <view class="calorie-ring">
       <text class="ring-pct">{{caloriePct}}%</text>
     </view>
   </view>
+
+  <view class="cal-block">
+    <text class="cal-current">{{calories}}</text>
+    <text class="cal-unit"> kcal</text>
+  </view>
+  <text class="cal-goal">/ {{calorieGoal}} 目标</text>
 
   <macro-bar
     protein="{{protein}}"

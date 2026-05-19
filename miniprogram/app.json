@@ -4,8 +4,8 @@
     "pages/summary/summary"
   ],
   "tabBar": {
-    "color": "#999999",
-    "selectedColor": "#FF6B35",
+    "color": "#BEBEBE",
+    "selectedColor": "#6FCF97",
     "backgroundColor": "#ffffff",
     "borderStyle": "white",
     "list": [

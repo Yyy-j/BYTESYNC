@@ -7,7 +7,10 @@ Component({
     weight:   { type: Number, value: 0  },
     protein:  { type: Number, value: 0  },
     carbs:    { type: Number, value: 0  },
-    fat:      { type: Number, value: 0  }
+    fat:      { type: Number, value: 0  },
+    user:     { type: String, value: '' },  // 'me' | 'ta'
+    userName: { type: String, value: '' },
+    time:     { type: String, value: '' },
   },
   data: {},
   methods: {

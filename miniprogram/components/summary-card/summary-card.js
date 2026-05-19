@@ -4,7 +4,7 @@ const { calcPct } = require('../../utils/nutrition')
 Component({
   properties: {
     userName:    { type: String, value: '— —'  },
-    avatar:      { type: String, value: ''     },
+    role:        { type: String, value: ''     },  // 'me' | 'ta'
     calories:    { type: Number, value: 0      },
     calorieGoal: { type: Number, value: 2000   },
     protein:     { type: Number, value: 0      },

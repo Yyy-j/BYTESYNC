@@ -10,11 +10,12 @@
   border-bottom: none;
 }
 
-.item-main {
+/* ── 第一行：食物名 + 时间 ── */
+.item-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-xs);
+  margin-bottom: 6rpx;
 }
 
 .item-name {
@@ -24,12 +25,44 @@
   flex: 1;
 }
 
+.item-time {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+  margin-left: var(--spacing-sm);
+}
+
+/* ── 第二行：热量 + 用户强调 ── */
+.item-row2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xs);
+}
+
 .item-calories {
   font-size: var(--font-size-sm);
   color: var(--color-primary);
   font-weight: 600;
 }
 
+.user-badge {
+  padding: 4rpx 16rpx;
+  border-radius: var(--radius-full);
+}
+
+.user-badge.me { background: var(--color-me-light); }
+.user-badge.ta { background: var(--color-ta-light); }
+
+.user-badge-text {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+.user-badge.me .user-badge-text { color: var(--color-me); }
+.user-badge.ta .user-badge-text { color: var(--color-ta); }
+
+/* ── 第三行：宏量标签 ── */
 .item-macros {
   display: flex;
   gap: var(--spacing-xs);
