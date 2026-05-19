@@ -53,7 +53,7 @@
       <food-list-item
         wx:for="{{foods}}"
         wx:key="id"
-        id="{{item.id}}"
+        mealId="{{item.id}}"
         name="{{item.name}}"
         calories="{{item.calories}}"
         protein="{{item.protein}}"
@@ -62,6 +62,8 @@
         user="{{item.user}}"
         userName="{{item.userName}}"
         time="{{item.time}}"
+        canDelete="{{item.canDelete}}"
+        bind:delete="onDeleteMeal"
       />
     </view>
     <view wx:else class="empty-hint">

@@ -102,6 +102,11 @@ const callCloudFunction = (name, data = {}) => {
 
 const analyzeMeal = (fileID, hint = '') => callCloudFunction('analyzeMeal', { fileID, hint })
 
+const deleteMeal = (mealId) => {
+  const db = wx.cloud.database()
+  return db.collection('meals').doc(mealId).remove()
+}
+
 module.exports = {
   // meals
   addMeal, getMealsByDate,
@@ -110,6 +115,6 @@ module.exports = {
   // pairs
   createPair, getPairByInviteCode, joinPair,
   // cloud
-  getOpenId, analyzeMeal, callCloudFunction,
+  getOpenId, analyzeMeal, deleteMeal, callCloudFunction,
 }
 

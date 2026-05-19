@@ -1,6 +1,6 @@
 // pages/summary/summary.js
 const { formatDate } = require('../../utils/formatter')
-const { getMealsByDate } = require('../../utils/api')
+const { getMealsByDate, deleteMeal } = require('../../utils/api')
 const config = require('../../utils/config')
 
 const app = getApp()
@@ -73,16 +73,17 @@ Page({
 
         // 渲染时用当前用户视角覆写 user/userName，保证颜色和标签正确
         const foods = allFoods.map(f => ({
-          id:       f._id,
-          name:     f.name,
-          calories: f.calories,
-          protein:  f.protein,
-          carbs:    f.carbs,
-          fat:      f.fat,
-          imageUrl: f.imageUrl || '',
-          user:     f.userId === myOpenid ? 'me' : 'ta',
-          userName: f.userId === myOpenid ? '我' : 'Ta',
-          time:     f.time,
+          id:        f._id,
+          name:      f.name,
+          calories:  f.calories,
+          protein:   f.protein,
+          carbs:     f.carbs,
+          fat:       f.fat,
+          imageUrl:  f.imageUrl || '',
+          user:      f.userId === myOpenid ? 'me' : 'ta',
+          userName:  f.userId === myOpenid ? '我' : 'Ta',
+          time:      f.time,
+          canDelete: f.userId === myOpenid,
         }))
 
         this.setData({ me, ta, foods, loading: false })
@@ -91,6 +92,31 @@ Page({
         console.error('[summary] 读取数据失败', err)
         this.setData({ loading: false })
       })
+  },
+
+  onDeleteMeal(e) {
+    const mealId = e.detail.id
+    wx.showModal({
+      title:        '删除这条记录？',
+      content:      '删除后无法恢复',
+      confirmText:  '删除',
+      confirmColor: '#EB5757',
+      success: (res) => {
+        if (!res.confirm) return
+        wx.showLoading({ title: '删除中…', mask: true })
+        deleteMeal(mealId)
+          .then(() => {
+            wx.hideLoading()
+            wx.showToast({ title: '已删除', icon: 'success', duration: 1000 })
+            this._loadData(this.data.currentDate)
+          })
+          .catch((err) => {
+            wx.hideLoading()
+            console.error('[summary] 删除失败', err)
+            wx.showToast({ title: '删除失败，请重试', icon: 'none', duration: 2000 })
+          })
+      },
+    })
   },
 
   onDateChange(e) {
