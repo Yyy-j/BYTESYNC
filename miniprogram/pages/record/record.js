@@ -1,5 +1,5 @@
 // pages/record/record.js
-const { addMeal, analyzeMeal } = require('../../utils/api')
+const { addMeal, analyzeMeal, deleteCloudFile } = require('../../utils/api')
 const { getCurrentDate, getCurrentTime } = require('../../utils/time')
 
 const app = getApp()
@@ -123,26 +123,31 @@ Page({
             if (!result.success) {
               throw new Error(result.error || 'AI 识别失败')
             }
+            // 识别成功后删除云存储临时文件（不阻塞主流程）
+            deleteCloudFile(fileID).catch(err => console.warn('[record] 删除临时图片失败', err))
             const originalFoodData = {
-                name:     result.name,
-                calories: result.calories,
-                protein:  result.protein,
-                carbs:    result.carbs,
-                fat:      result.fat,
-                imageUrl: fileID,
-                hint:     this.data.aiHint,
-              }
+              name:            result.name,
+              calories:        result.calories,
+              protein:         result.protein,
+              carbs:           result.carbs,
+              fat:             result.fat,
+              imageUrl:        '',
+              previewImageUrl: this.data.tempImageUrl,
+              hint:            this.data.aiHint,
+              source:          'ai',
+            }
             this.setData({
               baseFoodData: originalFoodData,
               foodData:     originalFoodData,
               portionRatio: 1,
-              state: 'result',
+              state:        'result',
             })
           })
           .catch(err => {
+            // 识别失败也尝试删除云存储文件
+            deleteCloudFile(fileID).catch(e => console.warn('[record] 删除临时图片失败', e))
             console.error('[record] AI 识别失败', err)
             wx.showToast({ title: '识别失败，请重试', icon: 'none', duration: 2000 })
-            // 保留 tempImageUrl，用户可以重拍
             this.setData({ state: 'idle' })
           })
       },

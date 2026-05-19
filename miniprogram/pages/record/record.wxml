@@ -83,7 +83,7 @@
         protein="{{foodData.protein}}"
         fat="{{foodData.fat}}"
         carbs="{{foodData.carbs}}"
-        imageUrl="{{foodData.imageUrl}}"
+        imageUrl="{{foodData.previewImageUrl || foodData.imageUrl}}"
       />
     </view>
 

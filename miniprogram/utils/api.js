@@ -112,6 +112,16 @@ const deleteMeal = (mealId) => {
   return db.collection('meals').doc(mealId).remove()
 }
 
+const deleteCloudFile = (fileID) => {
+  return new Promise((resolve, reject) => {
+    wx.cloud.deleteFile({
+      fileList: [fileID],
+      success: resolve,
+      fail:    reject,
+    })
+  })
+}
+
 const updateUserGoals = ({ openid, goals }) => {
   const db = wx.cloud.database()
   return db.collection('users').where({ openid }).update({
@@ -127,6 +137,6 @@ module.exports = {
   // pairs
   createPair, getPairByInviteCode, getPairByPairId, joinPair,
   // cloud
-  getOpenId, analyzeMeal, deleteMeal, callCloudFunction,
+  getOpenId, analyzeMeal, deleteMeal, deleteCloudFile, callCloudFunction,
 }
 
