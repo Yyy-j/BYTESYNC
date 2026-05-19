@@ -1,0 +1,15 @@
+<!-- pages/summary/summary.wxml -->
+<view class="container">
+
+  <view class="header">
+    <text class="title">今日总览</text>
+    <date-switcher date="{{date}}" bind:change="onDateChange" />
+  </view>
+
+  <view class="cards-section">
+    <!-- TODO: 接入数据后动态渲染两人卡片 -->
+    <summary-card />
+    <summary-card />
+  </view>
+
+</view>

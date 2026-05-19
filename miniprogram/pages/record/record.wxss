@@ -1,0 +1,53 @@
+/* pages/record/record.wxss */
+
+.container {
+  padding: var(--spacing-xl) var(--page-padding);
+  padding-bottom: calc(var(--spacing-xxl) + constant(safe-area-inset-bottom));
+  padding-bottom: calc(var(--spacing-xxl) + env(safe-area-inset-bottom));
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+
+.header {
+  margin-bottom: var(--spacing-xxl);
+}
+
+.title {
+  display: block;
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.subtitle {
+  display: block;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  margin-top: var(--spacing-sm);
+}
+
+.camera-section {
+  display: flex;
+  justify-content: center;
+  padding: var(--spacing-xl) 0;
+}
+
+.section-title {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  letter-spacing: 2rpx;
+  margin-bottom: var(--spacing-md);
+}
+
+.empty-hint {
+  display: flex;
+  justify-content: center;
+  padding: var(--spacing-xxl) 0;
+}
+
+.empty-text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+}

@@ -1,0 +1,59 @@
+/* components/food-card/food-card.wxss */
+
+.food-card {
+  display: flex;
+  align-items: flex-start;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  gap: var(--spacing-md);
+  box-shadow: var(--shadow-card);
+}
+
+.food-image {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: var(--radius-sm);
+  background: var(--color-border);
+  flex-shrink: 0;
+}
+
+.food-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.food-name {
+  display: block;
+  font-size: var(--font-size-md);
+  font-weight: 500;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.food-calories {
+  display: block;
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+  font-weight: 600;
+  margin-top: var(--spacing-xs);
+}
+
+.food-macros {
+  display: flex;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.macro-tag {
+  font-size: var(--font-size-xs);
+  padding: 4rpx 14rpx;
+  border-radius: var(--radius-full);
+}
+
+.macro-tag.protein { background: var(--color-protein-bg); color: var(--color-protein); }
+.macro-tag.carbs   { background: var(--color-carbs-bg);   color: var(--color-carbs);   }
+.macro-tag.fat     { background: var(--color-fat-bg);     color: var(--color-fat);     }

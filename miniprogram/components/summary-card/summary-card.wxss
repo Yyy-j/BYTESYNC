@@ -1,0 +1,84 @@
+/* components/summary-card/summary-card.wxss */
+
+.summary-card {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+}
+
+.avatar {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+  flex-shrink: 0;
+}
+
+.user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-name {
+  display: block;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.user-calories {
+  display: block;
+  margin-top: var(--spacing-xs);
+  line-height: 1.2;
+}
+
+.cal-current {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.cal-sep {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+.calorie-ring {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: var(--radius-full);
+  border: 6rpx solid var(--color-primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ring-pct {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+/* ── 身份色预留：me（蓝色） ── */
+.summary-card.me .cal-current  { color: var(--color-me); }
+.summary-card.me .calorie-ring { border-color: var(--color-me-light); }
+.summary-card.me .ring-pct     { color: var(--color-me); }
+
+/* ── 身份色预留：ta（玫瑰） ── */
+.summary-card.ta .cal-current  { color: var(--color-ta); }
+.summary-card.ta .calorie-ring { border-color: var(--color-ta-light); }
+.summary-card.ta .ring-pct     { color: var(--color-ta); }
+
+/* ── 热量超标警告态 ── */
+.summary-card.over .cal-current  { color: var(--color-warning); }
+.summary-card.over .calorie-ring { border-color: var(--color-warning-light); }
+.summary-card.over .ring-pct     { color: var(--color-warning); }

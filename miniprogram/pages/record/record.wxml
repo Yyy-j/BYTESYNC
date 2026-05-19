@@ -1,0 +1,21 @@
+<!-- pages/record/record.wxml -->
+<view class="container">
+
+  <view class="header">
+    <text class="title">拍一餐</text>
+    <text class="subtitle">记录你的每一口</text>
+  </view>
+
+  <view class="camera-section">
+    <camera-button bind:tap="onCameraTap" />
+  </view>
+
+  <view class="list-section">
+    <text class="section-title">今日记录</text>
+    <!-- TODO: 接入数据后渲染 food-list-item 列表 -->
+    <view class="empty-hint">
+      <text class="empty-text">还没有记录，拍一餐开始吧</text>
+    </view>
+  </view>
+
+</view>
