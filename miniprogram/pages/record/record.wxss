@@ -179,8 +179,8 @@
   flex-direction: column;
   min-height: 100vh;
   padding: var(--spacing-xl) var(--page-padding) 0;
-  padding-bottom: calc(200rpx + constant(safe-area-inset-bottom));
-  padding-bottom: calc(200rpx + env(safe-area-inset-bottom));
+  padding-bottom: calc(280rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(280rpx + env(safe-area-inset-bottom));
 }
 
 .result-header {
@@ -196,7 +196,48 @@
 }
 
 .result-card-wrap {
+  margin-bottom: var(--spacing-lg);
+}
+
+/* ── 份量快捷调整 ── */
+.ratio-section {
+  margin-bottom: var(--spacing-lg);
+}
+
+.ratio-title {
+  display: block;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.ratio-buttons {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.ratio-btn {
   flex: 1;
+  height: 64rpx;
+  line-height: 64rpx;
+  padding: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border: 1.5rpx solid var(--color-border);
+  border-radius: var(--radius-full);
+  text-align: center;
+}
+
+.ratio-btn::after {
+  border: none;
+}
+
+.ratio-btn.active {
+  color: var(--color-primary);
+  background: rgba(111, 207, 151, 0.12);
+  border-color: var(--color-primary);
+  font-weight: 600;
 }
 
 /* 底部操作区（固定 + 安全区） */

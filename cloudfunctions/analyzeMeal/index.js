@@ -5,7 +5,7 @@ const https  = require('https')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
 // ── 配置 ──────────────────────────────────────────────────
-const QWEN_KEY      = 'sk-10b3a6c63f55478e8cd167d99c8541fb'
+const QWEN_KEY      = process.env.QWEN_API_KEY
 const QWEN_ENDPOINT = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions'
 
 // ── 封装 HTTPS POST ────────────────────────────────────────
@@ -58,6 +58,10 @@ function parseNutrition(content) {
 // ── 主函数 ────────────────────────────────────────────────
 exports.main = async (event) => {
   const { fileID, hint = '' } = event
+
+  if (!QWEN_KEY) {
+    return { success: false, error: 'QWEN_API_KEY 未配置' }
+  }
 
   try {
     // 1. 从云存储下载图片 → base64

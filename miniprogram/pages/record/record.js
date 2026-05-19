@@ -9,6 +9,8 @@ Page({
     state:          'idle',    // 'idle' | 'loading' | 'result'
     tempImageUrl:   '',
     foodData:       null,
+    baseFoodData:   null,
+    portionRatio:   1,
     aiHint:         '',
     loadingText:    '识别中…',
     loadingSubtext: '正在估算这份料理',
@@ -83,8 +85,7 @@ Page({
             if (!result.success) {
               throw new Error(result.error || 'AI 识别失败')
             }
-            this.setData({
-              foodData: {
+            const originalFoodData = {
                 name:     result.name,
                 calories: result.calories,
                 protein:  result.protein,
@@ -92,7 +93,11 @@ Page({
                 fat:      result.fat,
                 imageUrl: fileID,
                 hint:     this.data.aiHint,
-              },
+              }
+            this.setData({
+              baseFoodData: originalFoodData,
+              foodData:     originalFoodData,
+              portionRatio: 1,
               state: 'result',
             })
           })
@@ -107,6 +112,22 @@ Page({
         console.error('[record] 上传失败', JSON.stringify(err))
         wx.showToast({ title: '上传失败，请重试', icon: 'none', duration: 2000 })
         this.setData({ state: 'idle', tempImageUrl: '' })
+      },
+    })
+  },
+
+  // 快捷比例调整
+  onRatioTap(e) {
+    const base  = this.data.baseFoodData
+    const ratio = Number(e.currentTarget.dataset.ratio)
+    this.setData({
+      portionRatio: ratio,
+      foodData: {
+        ...base,
+        calories: Math.round(base.calories * ratio),
+        protein:  Math.round(base.protein  * ratio),
+        carbs:    Math.round(base.carbs    * ratio),
+        fat:      Math.round(base.fat      * ratio),
       },
     })
   },
@@ -134,9 +155,10 @@ Page({
       protein:   foodData.protein,
       carbs:     foodData.carbs,
       fat:       foodData.fat,
-      imageUrl:  foodData.imageUrl || '',
-      hint:      foodData.hint     || '',
-      date:      getCurrentDate(),
+      imageUrl:     foodData.imageUrl  || '',
+      hint:         foodData.hint      || '',
+      portionRatio: this.data.portionRatio,
+      date:         getCurrentDate(),
       time:      getCurrentTime(),
       createdAt: new Date(),
     })
@@ -144,7 +166,10 @@ Page({
         wx.hideLoading()
         wx.showToast({ title: '已记录', icon: 'success', duration: 1200 })
         setTimeout(() => {
-          this.setData({ state: 'idle', tempImageUrl: '', foodData: null, aiHint: '' })
+          this.setData({
+            state: 'idle', tempImageUrl: '', foodData: null,
+            baseFoodData: null, portionRatio: 1, aiHint: '',
+          })
         }, 1200)
       })
       .catch((err) => {
@@ -156,7 +181,7 @@ Page({
 
   // 重新拍摄（保留 aiHint，用户可能只是照片拍错了）
   onRetake() {
-    this.setData({ state: 'idle', tempImageUrl: '', foodData: null })
+    this.setData({ state: 'idle', tempImageUrl: '', foodData: null, baseFoodData: null, portionRatio: 1 })
     this.onCameraTap()
   },
 })
