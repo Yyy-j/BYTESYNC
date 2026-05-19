@@ -1,4 +1,8 @@
 // pages/record/record.js
+const { addMeal } = require('../../utils/api')
+const { getCurrentDate, getCurrentTime } = require('../../utils/time')
+const config = require('../../utils/config')
+
 Page({
   data: {
     state: 'idle',       // 'idle' | 'loading' | 'result'
@@ -25,7 +29,7 @@ Page({
     })
   },
 
-  // 模拟 AI 识别（mock 数据）
+  // 模拟 AI 识别（Step 7+ 接 AI 后替换）
   _mockAnalyze(imageUrl) {
     setTimeout(() => {
       this.setData({
@@ -42,13 +46,40 @@ Page({
     }, 1500)
   },
 
-  // 记录这一餐
+  // 记录这一餐 → 写入云数据库 meals collection
   onSave() {
-    wx.showToast({ title: '已记录', icon: 'success', duration: 1200 })
-    // TODO Step 6: 保存到云数据库 meals collection
-    setTimeout(() => {
-      this.setData({ state: 'idle', tempImageUrl: '', foodData: null })
-    }, 1200)
+    const { foodData } = this.data
+
+    wx.showLoading({ title: '保存中…', mask: true })
+
+    addMeal({
+      pairId:    config.pairId,
+      userId:    config.myUserId,
+      userName:  config.myUserName,
+      role:      'me',
+      name:      foodData.name,
+      calories:  foodData.calories,
+      protein:   foodData.protein,
+      carbs:     foodData.carbs,
+      fat:       foodData.fat,
+      imageUrl:  foodData.imageUrl || '',
+      date:      getCurrentDate(),
+      time:      getCurrentTime(),
+      createdAt: new Date(),
+    })
+      .then(() => {
+        wx.hideLoading()
+        wx.showToast({ title: '已记录', icon: 'success', duration: 1200 })
+        setTimeout(() => {
+          this.setData({ state: 'idle', tempImageUrl: '', foodData: null })
+        }, 1200)
+      })
+      .catch((err) => {
+        wx.hideLoading()
+        console.error('[record] 保存失败', err)
+        wx.showToast({ title: '保存失败，请重试', icon: 'none', duration: 2000 })
+        // 保留 result 状态，让用户可以重试
+      })
   },
 
   // 重新拍摄：重置状态后立即重新打开相机
@@ -57,3 +88,4 @@ Page({
     this.onCameraTap()
   },
 })
+

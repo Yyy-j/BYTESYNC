@@ -1,11 +1,21 @@
 // app.js
+const config = require('./utils/config')
+
 App({
   globalData: {
-    userInfo: null
+    userInfo: null,
   },
 
   onLaunch() {
-    // TODO: 初始化微信云开发
-    // wx.cloud.init({ env: 'YOUR_ENV_ID', traceUser: true })
-  }
+    if (!wx.cloud) {
+      console.error('[BiteSync] 请升级基础库至 2.2.3+ 以使用云开发')
+      return
+    }
+    wx.cloud.init({
+      // env 来自 utils/config.js，修改一处全局生效
+      env: config.cloudEnvId,
+      traceUser: true,
+    })
+  },
 })
+
