@@ -77,9 +77,9 @@
 .summary-card.me .cal-current { color: var(--color-me); }
 .summary-card.me .pct-label   { color: var(--color-me); }
 
-/* ── Ta（玫瑰） ── */
-.summary-card.ta .cal-current { color: var(--color-ta); }
-.summary-card.ta .pct-label   { color: var(--color-ta); }
+/* ── Ta（黄色） ── */
+.summary-card.ta .cal-current { color: var(--color-carbs); }
+.summary-card.ta .pct-label   { color: var(--color-carbs); }
 
 /* ── 超标警告 ── */
 .summary-card.over .cal-current { color: var(--color-warning); }

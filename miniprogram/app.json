@@ -12,11 +12,15 @@
     "list": [
       {
         "pagePath": "pages/record/record",
-        "text": "记录"
+        "text": "记录",
+        "iconPath": "assets/icons/record.png",
+        "selectedIconPath": "assets/icons/record-active.png"
       },
       {
         "pagePath": "pages/summary/summary",
-        "text": "今日"
+        "text": "今日",
+        "iconPath": "assets/icons/summary.png",
+        "selectedIconPath": "assets/icons/summary-active.png"
       }
     ]
   },
