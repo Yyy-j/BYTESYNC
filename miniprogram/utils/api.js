@@ -100,6 +100,8 @@ const callCloudFunction = (name, data = {}) => {
   })
 }
 
+const analyzeMeal = (fileID) => callCloudFunction('analyzeMeal', { fileID })
+
 module.exports = {
   // meals
   addMeal, getMealsByDate,
@@ -108,6 +110,6 @@ module.exports = {
   // pairs
   createPair, getPairByInviteCode, joinPair,
   // cloud
-  getOpenId, callCloudFunction,
+  getOpenId, analyzeMeal, callCloudFunction,
 }
 
