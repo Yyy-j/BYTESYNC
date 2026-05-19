@@ -3,6 +3,8 @@ const { formatDate } = require('../../utils/formatter')
 const { getMealsByDate } = require('../../utils/api')
 const config = require('../../utils/config')
 
+const app = getApp()
+
 // 对单人食物列表做宏量聚合
 const sumMacros = (foods) => ({
   calories: foods.reduce((s, f) => s + (f.calories || 0), 0),
@@ -27,38 +29,49 @@ Page({
   },
 
   onShow() {
-    // 每次页面可见时刷新：首次加载 + 从 record 页保存后切回来
-    const { currentDate } = this.data
-    if (!currentDate) return
-    this._loadData(currentDate)
+    // 配对守卫：未配对则跳转 pairing
+    app._initPromise.then(() => {
+      if (!app.globalData.pairId) {
+        wx.redirectTo({ url: '/pages/pairing/pairing' })
+        return
+      }
+      // 每次页面可见时刷新：首次加载 + 从 record 页保存后切回来
+      const { currentDate } = this.data
+      if (!currentDate) return
+      this._loadData(currentDate)
+    })
   },
 
   _loadData(dateStr) {
     this.setData({ loading: true })
 
-    getMealsByDate(dateStr, config.pairId)
+    const pairId = app.globalData.pairId
+    const myOpenid = app.globalData.openid
+    console.log('[summary] _loadData', { dateStr, pairId, myOpenid })
+
+    getMealsByDate(dateStr, pairId)
       .then((res) => {
         const allFoods = res.data || []
+        console.log('[summary] query result', allFoods.length, allFoods)
 
-        // 按 userId 拆分两人
-        const meFoods = allFoods.filter(f => f.userId === config.myUserId)
-        const taFoods = allFoods.filter(f => f.userId === config.taUserId)
+        // 按当前用户拆分两人（不依赖 role 字段，防止角色混乱）
+        const meFoods = allFoods.filter(f => f.userId === myOpenid)
+        const taFoods = allFoods.filter(f => f.userId !== myOpenid)
 
-        // 聚合两人宏量数据（目标值来自 config.goals）
         const me = {
-          name: config.myUserName,
+          name: '我',
           role: 'me',
           ...config.goals.me,
           ...sumMacros(meFoods),
         }
         const ta = {
-          name: config.taUserName,
+          name: 'Ta',
           role: 'ta',
           ...config.goals.ta,
           ...sumMacros(taFoods),
         }
 
-        // 格式化为 food-list-item 需要的结构
+        // 渲染时用当前用户视角覆写 user/userName，保证颜色和标签正确
         const foods = allFoods.map(f => ({
           id:       f._id,
           name:     f.name,
@@ -67,8 +80,8 @@ Page({
           carbs:    f.carbs,
           fat:      f.fat,
           imageUrl: f.imageUrl || '',
-          user:     f.role,
-          userName: f.userName,
+          user:     f.userId === myOpenid ? 'me' : 'ta',
+          userName: f.userId === myOpenid ? '我' : 'Ta',
           time:     f.time,
         }))
 

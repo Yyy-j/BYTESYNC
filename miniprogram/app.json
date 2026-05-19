@@ -1,7 +1,8 @@
 {
   "pages": [
     "pages/record/record",
-    "pages/summary/summary"
+    "pages/summary/summary",
+    "pages/pairing/pairing"
   ],
   "tabBar": {
     "color": "#BEBEBE",

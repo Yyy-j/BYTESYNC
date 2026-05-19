@@ -1,18 +1,26 @@
 // pages/record/record.js
 const { addMeal } = require('../../utils/api')
 const { getCurrentDate, getCurrentTime } = require('../../utils/time')
-const config = require('../../utils/config')
+
+const app = getApp()
 
 Page({
   data: {
-    state: 'idle',       // 'idle' | 'loading' | 'result'
+    state: 'idle',
     tempImageUrl: '',
     foodData: null,
   },
 
   onLoad() {},
 
-  // 点击拍照按钮
+  onShow() {
+    app._initPromise.then(() => {
+      if (!app.globalData.pairId) {
+        wx.redirectTo({ url: '/pages/pairing/pairing' })
+      }
+    })
+  },
+
   onCameraTap() {
     wx.chooseMedia({
       count: 1,
@@ -23,13 +31,10 @@ Page({
         this.setData({ tempImageUrl, state: 'loading' })
         this._mockAnalyze(tempImageUrl)
       },
-      fail: () => {
-        // 用户取消，不处理
-      }
+      fail: () => {},
     })
   },
 
-  // 模拟 AI 识别（Step 7+ 接 AI 后替换）
   _mockAnalyze(imageUrl) {
     setTimeout(() => {
       this.setData({
@@ -46,17 +51,23 @@ Page({
     }, 1500)
   },
 
-  // 记录这一餐 → 写入云数据库 meals collection
   onSave() {
     const { foodData } = this.data
+    const { openid, userProfile, pairId } = app.globalData
+
+    if (!openid || !userProfile || !pairId) {
+      console.warn('[record] globalData not ready', { openid, userProfile, pairId })
+      wx.showToast({ title: '初始化未完成，请稍后重试', icon: 'none', duration: 2000 })
+      return
+    }
 
     wx.showLoading({ title: '保存中…', mask: true })
 
     addMeal({
-      pairId:    config.pairId,
-      userId:    config.myUserId,
-      userName:  config.myUserName,
-      role:      'me',
+      pairId,
+      userId:    openid,
+      userName:  userProfile.userName,
+      role:      userProfile.role,
       name:      foodData.name,
       calories:  foodData.calories,
       protein:   foodData.protein,
@@ -76,16 +87,13 @@ Page({
       })
       .catch((err) => {
         wx.hideLoading()
-        console.error('[record] 保存失败', err)
+        console.error('[record] save failed', err)
         wx.showToast({ title: '保存失败，请重试', icon: 'none', duration: 2000 })
-        // 保留 result 状态，让用户可以重试
       })
   },
 
-  // 重新拍摄：重置状态后立即重新打开相机
   onRetake() {
     this.setData({ state: 'idle', tempImageUrl: '', foodData: null })
     this.onCameraTap()
   },
 })
-
