@@ -9,6 +9,18 @@
     </view>
 
     <view class="idle-camera">
+      <view class="hint-input-wrap">
+        <textarea
+          class="hint-input"
+          value="{{aiHint}}"
+          placeholder="可以补充：这是什么 / 吃了多少"
+          placeholder-class="hint-placeholder"
+          maxlength="80"
+          auto-height
+          show-confirm-bar="{{false}}"
+          bind:input="onHintInput"
+        />
+      </view>
       <camera-button bind:tap="onCameraTap" />
     </view>
 

@@ -100,7 +100,7 @@ const callCloudFunction = (name, data = {}) => {
   })
 }
 
-const analyzeMeal = (fileID) => callCloudFunction('analyzeMeal', { fileID })
+const analyzeMeal = (fileID, hint = '') => callCloudFunction('analyzeMeal', { fileID, hint })
 
 module.exports = {
   // meals

@@ -9,11 +9,16 @@ Page({
     state:          'idle',    // 'idle' | 'loading' | 'result'
     tempImageUrl:   '',
     foodData:       null,
+    aiHint:         '',
     loadingText:    '识别中…',
     loadingSubtext: '正在估算这份料理',
   },
 
   onLoad() {},
+
+  onHintInput(e) {
+    this.setData({ aiHint: e.detail.value })
+  },
 
   // 配对守卫：未配对则跳转 pairing
   onShow() {
@@ -73,7 +78,7 @@ Page({
           loadingSubtext: '正在估算这份料理',
         })
 
-        analyzeMeal(fileID)
+        analyzeMeal(fileID, this.data.aiHint)
           .then(result => {
             if (!result.success) {
               throw new Error(result.error || 'AI 识别失败')
@@ -86,6 +91,7 @@ Page({
                 carbs:    result.carbs,
                 fat:      result.fat,
                 imageUrl: fileID,
+                hint:     this.data.aiHint,
               },
               state: 'result',
             })
@@ -129,6 +135,7 @@ Page({
       carbs:     foodData.carbs,
       fat:       foodData.fat,
       imageUrl:  foodData.imageUrl || '',
+      hint:      foodData.hint     || '',
       date:      getCurrentDate(),
       time:      getCurrentTime(),
       createdAt: new Date(),
@@ -137,7 +144,7 @@ Page({
         wx.hideLoading()
         wx.showToast({ title: '已记录', icon: 'success', duration: 1200 })
         setTimeout(() => {
-          this.setData({ state: 'idle', tempImageUrl: '', foodData: null })
+          this.setData({ state: 'idle', tempImageUrl: '', foodData: null, aiHint: '' })
         }, 1200)
       })
       .catch((err) => {
@@ -147,7 +154,7 @@ Page({
       })
   },
 
-  // 重新拍摄
+  // 重新拍摄（保留 aiHint，用户可能只是照片拍错了）
   onRetake() {
     this.setData({ state: 'idle', tempImageUrl: '', foodData: null })
     this.onCameraTap()

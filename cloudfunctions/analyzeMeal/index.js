@@ -57,7 +57,7 @@ function parseNutrition(content) {
 
 // ── 主函数 ────────────────────────────────────────────────
 exports.main = async (event) => {
-  const { fileID } = event
+  const { fileID, hint = '' } = event
 
   try {
     // 1. 从云存储下载图片 → base64
@@ -77,7 +77,7 @@ exports.main = async (event) => {
             },
             {
               type: 'text',
-              text: '请识别图中食物，估算1人份营养成分。只返回如下JSON，不要任何额外文字：{"name":"食物名（中文10字内）","calories":数字,"protein":数字,"carbs":数字,"fat":数字}。单位：calories=千卡，protein/carbs/fat=克，均为整数。',
+              text: `请识别图中食物，估算1人份营养成分。${hint ? `用户补充说明：「${hint}」，请结合图片和说明（若不冲突则优先采纳说明）估算。` : ''}只返回如下JSON，不要任何额外文字：{"name":"食物名（中文10字内）","calories":数字,"protein":数字,"carbs":数字,"fat":数字}。单位：calories=千卡，protein/carbs/fat=克，均为整数。`,
             },
           ],
         },
