@@ -51,7 +51,7 @@
     </view>
 
     <view class="result-actions">
-      <button class="btn-primary" bind:tap="onSave">记录这一餐</button>
+      <button class="primary-btn result-save-btn" bind:tap="onSave">记录这一餐</button>
       <button class="btn-ghost" bind:tap="onRetake">重新拍摄</button>
     </view>
   </view>

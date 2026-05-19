@@ -45,13 +45,15 @@ Page({
   // 记录这一餐
   onSave() {
     wx.showToast({ title: '已记录', icon: 'success', duration: 1200 })
+    // TODO Step 6: 保存到云数据库 meals collection
     setTimeout(() => {
       this.setData({ state: 'idle', tempImageUrl: '', foodData: null })
     }, 1200)
   },
 
-  // 重新拍摄
+  // 重新拍摄：重置状态后立即重新打开相机
   onRetake() {
     this.setData({ state: 'idle', tempImageUrl: '', foodData: null })
+    this.onCameraTap()
   },
 })
