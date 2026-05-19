@@ -1,6 +1,6 @@
 // pages/summary/summary.js
 const { formatDate } = require('../../utils/formatter')
-const { getMealsByDate, deleteMeal } = require('../../utils/api')
+const { getMealsByDate, deleteMeal, getPairByPairId, updateUserGoals } = require('../../utils/api')
 const config = require('../../utils/config')
 
 const app = getApp()
@@ -16,11 +16,15 @@ const sumMacros = (foods) => ({
 Page({
   data: {
     currentDate: '',
+    pairId:      '',
+    inviteCode:  '',
     // 初始化为全零，避免 WXML 访问 null 报错
     me: { name: '我',  role: 'me', calories: 0, protein: 0, carbs: 0, fat: 0, calorieGoal: 2000, proteinGoal: 90, carbsGoal: 250, fatGoal: 60 },
     ta: { name: 'Ta', role: 'ta', calories: 0, protein: 0, carbs: 0, fat: 0, calorieGoal: 2000, proteinGoal: 90, carbsGoal: 250, fatGoal: 60 },
     foods: [],
     loading: false,
+    goalEditing: false,
+    goalInput: '',
   },
 
   onLoad() {
@@ -36,6 +40,16 @@ Page({
         return
       }
       // 每次页面可见时刷新：首次加载 + 从 record 页保存后切回来
+      this.setData({ pairId: app.globalData.pairId || '' })
+      // 邀请码只查一次，之后缓存在 data 里
+      if (!this.data.inviteCode) {
+        getPairByPairId(app.globalData.pairId)
+          .then(res => {
+            const code = res.data && res.data[0] && res.data[0].inviteCode
+            if (code) this.setData({ inviteCode: code })
+          })
+          .catch(() => {})
+      }
       const { currentDate } = this.data
       if (!currentDate) return
       this._loadData(currentDate)
@@ -58,10 +72,12 @@ Page({
         const meFoods = allFoods.filter(f => f.userId === myOpenid)
         const taFoods = allFoods.filter(f => f.userId !== myOpenid)
 
+        const myGoals = app.globalData.userProfile && app.globalData.userProfile.goals
         const me = {
           name: '我',
           role: 'me',
           ...config.goals.me,
+          calorieGoal: (myGoals && myGoals.calorieGoal) || config.goals.me.calorieGoal || 2000,
           ...sumMacros(meFoods),
         }
         const ta = {
@@ -127,6 +143,39 @@ Page({
     const newDate = formatDate(date)
     this.setData({ currentDate: newDate })
     this._loadData(newDate)
+  },
+
+  toggleGoalEdit() {
+    this.setData({ goalEditing: !this.data.goalEditing, goalInput: '' })
+  },
+
+  onGoalInput(e) {
+    this.setData({ goalInput: e.detail.value })
+  },
+
+  onSaveGoal() {
+    const val = Number(this.data.goalInput)
+    if (!val || val < 800 || val > 5000) {
+      wx.showToast({ title: '请输入 800–5000 的数值', icon: 'none', duration: 1500 })
+      return
+    }
+    const openid = app.globalData.openid
+    const prevGoals = (app.globalData.userProfile && app.globalData.userProfile.goals) || {}
+    const newGoals = { ...prevGoals, calorieGoal: val }
+    wx.showLoading({ title: '保存中…', mask: true })
+    updateUserGoals({ openid, goals: newGoals })
+      .then(() => {
+        wx.hideLoading()
+        if (!app.globalData.userProfile) app.globalData.userProfile = {}
+        app.globalData.userProfile.goals = newGoals
+        this.setData({ goalEditing: false, goalInput: '', 'me.calorieGoal': val })
+        wx.showToast({ title: '目标已更新', icon: 'success', duration: 1200 })
+      })
+      .catch(err => {
+        wx.hideLoading()
+        console.error('[summary] 保存目标失败', err)
+        wx.showToast({ title: '保存失败，请重试', icon: 'none', duration: 2000 })
+      })
   },
 })
 

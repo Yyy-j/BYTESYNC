@@ -62,6 +62,11 @@ const getPairByInviteCode = (inviteCode) => {
   return db.collection('pairs').where({ inviteCode }).limit(1).get()
 }
 
+const getPairByPairId = (pairId) => {
+  const db = wx.cloud.database()
+  return db.collection('pairs').where({ pairId }).limit(1).get()
+}
+
 const joinPair = ({ openid, inviteCode }) => {
   const db = wx.cloud.database()
   return db.collection('pairs').where({ inviteCode }).limit(1).get()
@@ -107,13 +112,20 @@ const deleteMeal = (mealId) => {
   return db.collection('meals').doc(mealId).remove()
 }
 
+const updateUserGoals = ({ openid, goals }) => {
+  const db = wx.cloud.database()
+  return db.collection('users').where({ openid }).update({
+    data: { goals, updatedAt: new Date() },
+  })
+}
+
 module.exports = {
   // meals
   addMeal, getMealsByDate,
   // users
-  getUserByOpenId, createUser, updateUserPair,
+  getUserByOpenId, createUser, updateUserPair, updateUserGoals,
   // pairs
-  createPair, getPairByInviteCode, joinPair,
+  createPair, getPairByInviteCode, getPairByPairId, joinPair,
   // cloud
   getOpenId, analyzeMeal, deleteMeal, callCloudFunction,
 }

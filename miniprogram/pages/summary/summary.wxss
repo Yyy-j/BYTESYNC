@@ -27,6 +27,15 @@
   margin-top: var(--spacing-sm);
 }
 
+.pair-id-text {
+  display: block;
+  font-size: 20rpx;
+  color: var(--color-text-tertiary);
+  opacity: 0.6;
+  margin-top: 8rpx;
+  letter-spacing: 0.5rpx;
+}
+
 /* ── 通用 Section ── */
 .section {
   padding: var(--spacing-md) var(--page-padding);
@@ -41,6 +50,64 @@
 .card-half {
   flex: 1;
   min-width: 0;
+}
+
+/* ── 目标行 ── */
+.goal-row {
+  margin-top: var(--spacing-md);
+}
+
+.goal-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-card);
+  border-radius: var(--radius-md);
+}
+
+.goal-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.goal-edit-btn {
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+  padding: 4rpx 16rpx;
+}
+
+.goal-edit-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-card);
+  border-radius: var(--radius-md);
+}
+
+.goal-input {
+  flex: 1;
+  height: 64rpx;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  border-bottom: 1.5rpx solid rgba(111, 207, 151, 0.4);
+  padding: 0 8rpx;
+}
+
+.goal-save-btn {
+  font-size: var(--font-size-sm);
+  color: #fff;
+  background: var(--color-primary);
+  border-radius: var(--radius-full);
+  padding: 10rpx 28rpx;
+  font-weight: 600;
+}
+
+.goal-cancel-btn {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  padding: 10rpx 12rpx;
 }
 
 /* ── 列表区标题 ── */

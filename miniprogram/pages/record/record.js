@@ -14,12 +14,50 @@ Page({
     aiHint:         '',
     loadingText:    '识别中…',
     loadingSubtext: '正在估算这份料理',
+    manualExpanded: false,
+    manualForm: { name: '', calories: '', protein: '', carbs: '', fat: '' },
   },
 
   onLoad() {},
 
   onHintInput(e) {
     this.setData({ aiHint: e.detail.value })
+  },
+
+  // ── 手动记录 ──────────────────────────────
+  toggleManualForm() {
+    this.setData({ manualExpanded: !this.data.manualExpanded })
+  },
+
+  onManualInput(e) {
+    const field = e.currentTarget.dataset.field
+    this.setData({ [`manualForm.${field}`]: e.detail.value })
+  },
+
+  onManualSave() {
+    const { name, calories, protein, carbs, fat } = this.data.manualForm
+    const cal = Number(calories)
+    if (!calories || cal <= 0) {
+      wx.showToast({ title: '请填写卡路里', icon: 'none', duration: 1500 })
+      return
+    }
+    const foodData = {
+      name:     name.trim() || '手动记录',
+      calories: Math.round(cal),
+      protein:  Math.round(Number(protein) || 0),
+      carbs:    Math.round(Number(carbs)   || 0),
+      fat:      Math.round(Number(fat)     || 0),
+      imageUrl: '',
+      hint:     '',
+      source:   'manual',
+    }
+    this.setData({
+      baseFoodData:   foodData,
+      foodData:       foodData,
+      portionRatio:   1,
+      state:          'result',
+      manualExpanded: false,
+    })
   },
 
   // 配对守卫：未配对则跳转 pairing
@@ -157,6 +195,7 @@ Page({
       fat:       foodData.fat,
       imageUrl:     foodData.imageUrl  || '',
       hint:         foodData.hint      || '',
+      source:       foodData.source    || 'ai',
       portionRatio: this.data.portionRatio,
       date:         getCurrentDate(),
       time:      getCurrentTime(),
@@ -169,6 +208,8 @@ Page({
           this.setData({
             state: 'idle', tempImageUrl: '', foodData: null,
             baseFoodData: null, portionRatio: 1, aiHint: '',
+            manualExpanded: false,
+            manualForm: { name: '', calories: '', protein: '', carbs: '', fat: '' },
           })
         }, 1200)
       })
@@ -181,7 +222,12 @@ Page({
 
   // 重新拍摄（保留 aiHint，用户可能只是照片拍错了）
   onRetake() {
-    this.setData({ state: 'idle', tempImageUrl: '', foodData: null, baseFoodData: null, portionRatio: 1 })
+    this.setData({
+      state: 'idle', tempImageUrl: '', foodData: null,
+      baseFoodData: null, portionRatio: 1,
+      manualExpanded: false,
+      manualForm: { name: '', calories: '', protein: '', carbs: '', fat: '' },
+    })
     this.onCameraTap()
   },
 })

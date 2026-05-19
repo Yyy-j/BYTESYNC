@@ -22,11 +22,36 @@
         />
       </view>
       <camera-button bind:tap="onCameraTap" />
+
+      <!-- 手动记录入口 -->
+      <view class="manual-section">
+        <text class="manual-toggle" bind:tap="toggleManualForm">{{manualExpanded ? '收起' : '手动记录一餐'}}</text>
+        <view wx:if="{{manualExpanded}}" class="manual-form">
+          <view class="manual-row">
+            <text class="manual-label">食物名称</text>
+            <input class="manual-input" value="{{manualForm.name}}" placeholder="手动记录" data-field="name" bind:input="onManualInput" />
+          </view>
+          <view class="manual-row">
+            <text class="manual-label">卡路里 <text class="manual-required">*</text></text>
+            <input class="manual-input" value="{{manualForm.calories}}" placeholder="千卡" type="digit" data-field="calories" bind:input="onManualInput" />
+          </view>
+          <view class="manual-row">
+            <text class="manual-label">蛋白质</text>
+            <input class="manual-input" value="{{manualForm.protein}}" placeholder="0 克" type="digit" data-field="protein" bind:input="onManualInput" />
+          </view>
+          <view class="manual-row">
+            <text class="manual-label">碳水化合物</text>
+            <input class="manual-input" value="{{manualForm.carbs}}" placeholder="0 克" type="digit" data-field="carbs" bind:input="onManualInput" />
+          </view>
+          <view class="manual-row">
+            <text class="manual-label">脂肪</text>
+            <input class="manual-input" value="{{manualForm.fat}}" placeholder="0 克" type="digit" data-field="fat" bind:input="onManualInput" />
+          </view>
+          <button class="manual-save-btn" bind:tap="onManualSave">生成记录</button>
+        </view>
+      </view>
     </view>
 
-    <view class="idle-footer">
-      <text class="footer-hint">今天还没有记录</text>
-    </view>
   </view>
 
   <!-- ══════════════ LOADING 状态 ══════════════ -->
@@ -48,7 +73,7 @@
   <!-- ══════════════ RESULT 状态 ══════════════ -->
   <view wx:elif="{{state === 'result'}}" class="result-page">
     <view class="result-header">
-      <text class="result-title">识别完成</text>
+      <text class="result-title">{{foodData.source === 'manual' ? '手动记录' : '识别完成'}}</text>
     </view>
 
     <view class="result-card-wrap">

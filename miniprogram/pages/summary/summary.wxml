@@ -4,7 +4,7 @@
   <!-- ── Header ── -->
   <view class="page-header">
     <text class="page-title">今日总览</text>
-    <text class="page-subtitle">看看我们今天吃得怎么样</text>
+    <text wx:if="{{inviteCode}}" class="pair-id-text">配对码：{{inviteCode}}</text>
   </view>
 
   <!-- ── 日期切换 ── -->
@@ -44,6 +44,19 @@
         />
       </view>
     </view>
+
+    <!-- 我的每日目标 -->
+    <view class="goal-row">
+      <view wx:if="{{!goalEditing}}" class="goal-display">
+        <text class="goal-label">我的每日目标：{{me.calorieGoal}} kcal</text>
+        <text class="goal-edit-btn" bind:tap="toggleGoalEdit">修改</text>
+      </view>
+      <view wx:else class="goal-edit-row">
+        <input class="goal-input" value="{{goalInput}}" placeholder="800–5000" type="number" bind:input="onGoalInput" />
+        <text class="goal-save-btn" bind:tap="onSaveGoal">保存</text>
+        <text class="goal-cancel-btn" bind:tap="toggleGoalEdit">取消</text>
+      </view>
+    </view>
   </view>
 
   <!-- ── 今日记录列表 ── -->
@@ -68,7 +81,6 @@
     </view>
     <view wx:else class="empty-hint">
       <text class="empty-icon">🍽</text>
-      <text class="empty-title">今天还没有记录</text>
       <text class="empty-sub">拍一餐开始吧</text>
     </view>
   </view>
