@@ -3,7 +3,7 @@
 .macro-bar {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: var(--spacing-sm);
 }
 
 .macro-row {
@@ -13,10 +13,11 @@
 }
 
 .macro-label {
-  width: 100rpx;
+  width: 56rpx;
   font-size: var(--font-size-xs);
   color: var(--color-text-tertiary);
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .macro-track {
@@ -38,9 +39,9 @@
 .macro-fill.fat     { background: var(--color-fat);     }
 
 .macro-value {
-  width: 72rpx;
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
   text-align: right;
   flex-shrink: 0;
+  white-space: nowrap;
 }

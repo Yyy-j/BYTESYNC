@@ -8,7 +8,7 @@
     <text class="macro-value">{{protein}}g</text>
   </view>
   <view class="macro-row">
-    <text class="macro-label">碳水化合物</text>
+    <text class="macro-label">碳水</text>
     <view class="macro-track">
       <view class="macro-fill carbs" style="width: {{carbsPct}}%" />
     </view>

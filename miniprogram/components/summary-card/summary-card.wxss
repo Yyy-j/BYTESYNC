@@ -5,46 +5,49 @@
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
   box-shadow: var(--shadow-card);
+  animation: card-enter 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── 顶部：用户名 + 完成度（弱化） ── */
 .card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
 }
 
 .user-name {
-  font-size: var(--font-size-md);
-  font-weight: 600;
-  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
 }
 
-.calorie-ring {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: var(--radius-full);
-  border: 5rpx solid var(--color-primary-light);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+.pct-label {
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--color-text-tertiary);
 }
 
-.ring-pct {
-  font-size: 20rpx;
-  font-weight: 700;
-  color: var(--color-primary);
-}
-
+/* ── 热量主数字 ── */
 .cal-block {
   display: flex;
   align-items: baseline;
-  margin-bottom: 4rpx;
+  margin-bottom: 8rpx;
 }
 
 .cal-current {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-xl);
   font-weight: 700;
   color: var(--color-primary);
   line-height: 1;
@@ -53,26 +56,31 @@
 .cal-unit {
   font-size: var(--font-size-xs);
   color: var(--color-text-tertiary);
+  font-weight: 400;
 }
 
 .cal-goal {
   display: block;
   font-size: var(--font-size-xs);
   color: var(--color-text-tertiary);
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+}
+
+/* ── 分割线 ── */
+.card-divider {
+  height: 1rpx;
+  background: var(--color-border);
+  margin-bottom: var(--spacing-md);
 }
 
 /* ── 我（蓝色） ── */
-.summary-card.me .cal-current  { color: var(--color-me); }
-.summary-card.me .calorie-ring { border-color: var(--color-me-light); }
-.summary-card.me .ring-pct     { color: var(--color-me); }
+.summary-card.me .cal-current { color: var(--color-me); }
+.summary-card.me .pct-label   { color: var(--color-me); }
 
 /* ── Ta（玫瑰） ── */
-.summary-card.ta .cal-current  { color: var(--color-ta); }
-.summary-card.ta .calorie-ring { border-color: var(--color-ta-light); }
-.summary-card.ta .ring-pct     { color: var(--color-ta); }
+.summary-card.ta .cal-current { color: var(--color-ta); }
+.summary-card.ta .pct-label   { color: var(--color-ta); }
 
 /* ── 超标警告 ── */
-.summary-card.over .cal-current  { color: var(--color-warning); }
-.summary-card.over .calorie-ring { border-color: var(--color-warning-light); }
-.summary-card.over .ring-pct     { color: var(--color-warning); }
+.summary-card.over .cal-current { color: var(--color-warning); }
+.summary-card.over .pct-label   { color: var(--color-warning); }

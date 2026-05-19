@@ -4,6 +4,12 @@
   padding: var(--spacing-lg) var(--page-padding);
   background: var(--color-bg-card);
   border-bottom: 1rpx solid var(--color-border);
+  animation: item-fade 0.3s ease both;
+}
+
+@keyframes item-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .food-list-item:last-child {
@@ -15,7 +21,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6rpx;
+  margin-bottom: var(--spacing-xs);
 }
 
 .item-name {
@@ -37,7 +43,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
 }
 
 .item-calories {
@@ -47,7 +53,7 @@
 }
 
 .user-badge {
-  padding: 4rpx 16rpx;
+  padding: 4rpx 18rpx;
   border-radius: var(--radius-full);
 }
 
@@ -65,7 +71,8 @@
 /* ── 第三行：宏量标签 ── */
 .item-macros {
   display: flex;
-  gap: var(--spacing-xs);
+  gap: 12rpx;
+  flex-wrap: wrap;
 }
 
 .macro-tag {

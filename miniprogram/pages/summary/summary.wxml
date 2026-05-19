@@ -65,7 +65,9 @@
       />
     </view>
     <view wx:else class="empty-hint">
-      <text class="empty-text">今天还没有记录</text>
+      <text class="empty-icon">🍽</text>
+      <text class="empty-title">今天还没有记录</text>
+      <text class="empty-sub">拍一餐开始吧</text>
     </view>
   </view>
 
