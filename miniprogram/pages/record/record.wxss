@@ -47,14 +47,18 @@
   min-height: 70vh;
 }
 
-/* ── 辅助提示输入框 ── */
-.hint-input-wrap {
+/* ── 辅助提示输入框行 ── */
+.hint-row {
   width: 100%;
   max-width: 560rpx;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--spacing-sm);
 }
 
 .hint-input {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   min-height: 96rpx;      /* 至少两行 */
   background: rgba(111, 207, 151, 0.08);
   border: 1.5rpx solid rgba(111, 207, 151, 0.3);
@@ -64,6 +68,28 @@
   color: var(--color-text-primary);
   line-height: 1.6;
   box-sizing: border-box;
+}
+
+/* ── 文字发送按钮 ── */
+.hint-send-btn {
+  flex-shrink: 0;
+  width: 72rpx;
+  height: 72rpx;
+  background: var(--color-primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12rpx;
+}
+
+.hint-send-btn.hint-send-disabled {
+  opacity: 0.35;
+}
+
+.hint-send-icon {
+  width: 32rpx;
+  height: 32rpx;
 }
 
 .hint-placeholder {
@@ -251,11 +277,11 @@
 }
 
 /* 继承全局 .primary-btn，补充 button 元素所需的宽度与边框重置 */
-button.result-save-btn {
+.result-save-btn {
   width: 100%;
 }
 
-button.result-save-btn::after {
+.result-save-btn::after {
   border: none;
 }
 

@@ -105,7 +105,9 @@ const callCloudFunction = (name, data = {}) => {
   })
 }
 
-const analyzeMeal = (fileID, hint = '') => callCloudFunction('analyzeMeal', { fileID, hint })
+const analyzeMeal = (fileID, hint = '') => callCloudFunction('analyzeMeal', { fileID, hint, mode: 'image' })
+
+const analyzeMealByText = (text) => callCloudFunction('analyzeMeal', { text, mode: 'text' })
 
 const deleteMeal = (mealId) => {
   const db = wx.cloud.database()
@@ -137,6 +139,6 @@ module.exports = {
   // pairs
   createPair, getPairByInviteCode, getPairByPairId, joinPair,
   // cloud
-  getOpenId, analyzeMeal, deleteMeal, deleteCloudFile, callCloudFunction,
+  getOpenId, analyzeMeal, analyzeMealByText, deleteMeal, deleteCloudFile, callCloudFunction,
 }
 

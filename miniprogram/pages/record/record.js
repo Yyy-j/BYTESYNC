@@ -1,5 +1,5 @@
 // pages/record/record.js
-const { addMeal, analyzeMeal, deleteCloudFile } = require('../../utils/api')
+const { addMeal, analyzeMeal, analyzeMealByText, deleteCloudFile } = require('../../utils/api')
 const { getCurrentDate, getCurrentTime } = require('../../utils/time')
 
 const app = getApp()
@@ -67,6 +67,42 @@ Page({
         wx.redirectTo({ url: '/pages/pairing/pairing' })
       }
     })
+  },
+
+  // 文字描述直接识别
+  onTextAnalyze() {
+    const hint = (this.data.aiHint || '').trim()
+    if (!hint) {
+      wx.showToast({ title: '请输入食物描述', icon: 'none', duration: 1500 })
+      return
+    }
+    this.setData({
+      state:          'loading',
+      tempImageUrl:   '',
+      loadingText:    '查询中…',
+      loadingSubtext: '正在估算这份料理',
+    })
+    analyzeMealByText(hint)
+      .then(result => {
+        if (!result.success) throw new Error(result.error || '查询失败')
+        const originalFoodData = {
+          name:            result.name,
+          calories:        result.calories,
+          protein:         result.protein,
+          carbs:           result.carbs,
+          fat:             result.fat,
+          imageUrl:        '',
+          previewImageUrl: '',
+          hint,
+          source:          'text',
+        }
+        this.setData({ baseFoodData: originalFoodData, foodData: originalFoodData, portionRatio: 1, state: 'result' })
+      })
+      .catch(err => {
+        console.error('[record] 文字识别失败', err)
+        wx.showToast({ title: '查询失败，请重试', icon: 'none', duration: 2000 })
+        this.setData({ state: 'idle' })
+      })
   },
 
   // 点击拍照按钮

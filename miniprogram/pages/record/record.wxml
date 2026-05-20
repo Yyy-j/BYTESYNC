@@ -9,17 +9,20 @@
     </view>
 
     <view class="idle-camera">
-      <view class="hint-input-wrap">
+      <view class="hint-row">
         <textarea
           class="hint-input"
           value="{{aiHint}}"
-          placeholder="可以补充：这是什么 / 吃了多少"
+          placeholder="描述食物，或拍照前补充说明"
           placeholder-class="hint-placeholder"
           maxlength="80"
           auto-height
           show-confirm-bar="{{false}}"
           bind:input="onHintInput"
         />
+        <view class="hint-send-btn {{aiHint ? '' : 'hint-send-disabled'}}" bind:tap="onTextAnalyze">
+          <image class="hint-send-icon" src="/assets/icons/send.png" mode="aspectFit" />
+        </view>
       </view>
       <camera-button bind:tap="onCameraTap" />
 
@@ -56,7 +59,7 @@
 
   <!-- ══════════════ LOADING 状态 ══════════════ -->
   <view wx:elif="{{state === 'loading'}}" class="loading-page">
-    <image class="loading-bg" src="{{tempImageUrl}}" mode="aspectFill" />
+    <image wx:if="{{tempImageUrl}}" class="loading-bg" src="{{tempImageUrl}}" mode="aspectFill" />
     <view class="loading-mask">
       <view class="loading-content">
         <view class="loading-dots">
