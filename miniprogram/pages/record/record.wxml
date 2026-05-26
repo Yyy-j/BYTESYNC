@@ -59,18 +59,39 @@
 
   <!-- ══════════════ LOADING 状态 ══════════════ -->
   <view wx:elif="{{state === 'loading'}}" class="loading-page">
-    <image wx:if="{{tempImageUrl}}" class="loading-bg" src="{{tempImageUrl}}" mode="aspectFill" />
-    <view class="loading-mask">
-      <view class="loading-content">
-        <view class="loading-dots">
-          <view class="dot dot-1"></view>
-          <view class="dot dot-2"></view>
-          <view class="dot dot-3"></view>
-        </view>
-        <text class="loading-text">{{loadingText}}</text>
-        <text class="loading-subtext">{{loadingSubtext}}</text>
+
+    <!-- 扫描框气泡 -->
+    <view class="lp-scan">
+      <view class="lp-scan-frame">
+        <view class="lp-scan-corner lp-scan-tl"></view>
+        <view class="lp-scan-corner lp-scan-tr"></view>
+        <view class="lp-scan-corner lp-scan-bl"></view>
+        <view class="lp-scan-corner lp-scan-br"></view>
+        <text class="lp-scan-heart">🤍</text>
+      </view>
+      <text class="lp-scan-label">{{loadingText}}</text>
+    </view>
+
+    <!-- 主插画 -->
+    <image class="lp-hero" src="/assets/icons/loading-hero.png" mode="aspectFit" />
+
+    <!-- 文案 -->
+    <text class="lp-title">正在识别美食中 🤍</text>
+    <text class="lp-subtitle">请稍候，马上为你呈现结果～</text>
+
+    <!-- 进度条卡片 -->
+    <view class="lp-progress-card">
+      <view class="lp-progress-track">
+        <view class="lp-progress-fill" style="width: {{loadingProgress || 8}}%"></view>
       </view>
     </view>
+
+    <!-- 底部提示胶囊 -->
+    <view class="lp-tip">
+      <text class="lp-tip-leaf">🌿</text>
+      <text class="lp-tip-text">健康饮食，记录美好生活每一刻</text>
+    </view>
+
   </view>
 
   <!-- ══════════════ RESULT 状态 ══════════════ -->
@@ -98,6 +119,38 @@
         <button class="ratio-btn {{portionRatio === 0.5    ? 'active' : ''}}" data-ratio="0.5"    bind:tap="onRatioTap">1/2</button>
         <button class="ratio-btn {{portionRatio === 0.6667 ? 'active' : ''}}" data-ratio="0.6667" bind:tap="onRatioTap">2/3</button>
         <button class="ratio-btn {{portionRatio === 0.3333 ? 'active' : ''}}" data-ratio="0.3333" bind:tap="onRatioTap">1/3</button>
+      </view>
+    </view>
+
+    <!-- 同步给 Ta -->
+    <view class="share-section">
+      <text class="share-title">这顿要同步给 Ta 吗？</text>
+      <view class="share-mode-row">
+        <view class="share-chip {{shareMode === 'solo' ? 'active' : ''}}" data-mode="solo" bind:tap="onShareModeChange">
+          <text>只记录给我</text>
+        </view>
+        <view class="share-chip {{shareMode !== 'solo' ? 'active' : ''}}" data-mode="shared" bind:tap="onShareModeChange">
+          <text>一起吃</text>
+        </view>
+      </view>
+      <view wx:if="{{shareMode !== 'solo'}}" class="split-section">
+        <text class="split-title">怎么分？</text>
+        <view class="split-row">
+          <view class="split-chip {{shareMode === 'half' ? 'active' : ''}}" data-mode="half" bind:tap="onSplitTap">
+            <text>一人一半</text>
+          </view>
+          <view class="split-chip {{shareMode === 'me_1_3' ? 'active' : ''}}" data-mode="me_1_3" bind:tap="onSplitTap">
+            <text>我 1/3 · Ta 2/3</text>
+          </view>
+          <view class="split-chip {{shareMode === 'me_2_3' ? 'active' : ''}}" data-mode="me_2_3" bind:tap="onSplitTap">
+            <text>我 2/3 · Ta 1/3</text>
+          </view>
+        </view>
+        <view class="share-preview">
+          <text class="share-preview-me">我 {{sharePreview.meCalories}} kcal</text>
+          <text class="share-preview-sep">·</text>
+          <text class="share-preview-ta">Ta {{sharePreview.taCalories}} kcal</text>
+        </view>
       </view>
     </view>
 

@@ -1,5 +1,5 @@
 // pages/record/record.js
-const { addMeal, analyzeMeal, analyzeMealByText, deleteCloudFile } = require('../../utils/api')
+const { addMeal, addMeals, analyzeMeal, analyzeMealByText, deleteCloudFile, getUsersByPairId } = require('../../utils/api')
 const { getCurrentDate, getCurrentTime } = require('../../utils/time')
 
 const app = getApp()
@@ -14,8 +14,11 @@ Page({
     aiHint:         '',
     loadingText:    '识别中…',
     loadingSubtext: '正在估算这份料理',
+    loadingProgress: 0,
     manualExpanded: false,
     manualForm: { name: '', calories: '', protein: '', carbs: '', fat: '' },
+    shareMode:    'solo',
+    sharePreview: { meCalories: 0, taCalories: 0 },
   },
 
   onLoad() {},
@@ -59,7 +62,50 @@ Page({
       manualExpanded: false,
     })
   },
+  // ── 共享逻辑辅助 ─────────────────────────────────
+  _getShareRatios(mode) {
+    const map = { solo: [1, 0], half: [0.5, 0.5], me_1_3: [1/3, 2/3], me_2_3: [2/3, 1/3] }
+    return map[mode] || [1, 0]
+  },
 
+  _calcSharePreview(calories, mode) {
+    const [me, ta] = this._getShareRatios(mode)
+    return { meCalories: Math.round(calories * me), taCalories: Math.round(calories * ta) }
+  },
+
+  _buildMeal(ratio, foodData, userId, userName, role, pairId, shareMode, sharedMealId) {
+    return {
+      pairId, userId, userName, role,
+      name:         foodData.name,
+      calories:     Math.round(foodData.calories * ratio),
+      protein:      Math.round(foodData.protein  * ratio),
+      carbs:        Math.round(foodData.carbs    * ratio),
+      fat:          Math.round(foodData.fat      * ratio),
+      imageUrl:     foodData.imageUrl  || '',
+      hint:         foodData.hint      || '',
+      source:       foodData.source    || 'ai',
+      portionRatio: this.data.portionRatio,
+      shareMode,
+      sharedMealId: sharedMealId || '',
+      date:         getCurrentDate(),
+      time:         getCurrentTime(),
+      createdAt:    new Date(),
+    }
+  },
+
+  onShareModeChange(e) {
+    const clicked = e.currentTarget.dataset.mode
+    const newMode = clicked === 'solo' ? 'solo'
+      : (this.data.shareMode === 'solo' ? 'half' : this.data.shareMode)
+    const cal = (this.data.foodData && this.data.foodData.calories) || 0
+    this.setData({ shareMode: newMode, sharePreview: this._calcSharePreview(cal, newMode) })
+  },
+
+  onSplitTap(e) {
+    const mode = e.currentTarget.dataset.mode
+    const cal  = (this.data.foodData && this.data.foodData.calories) || 0
+    this.setData({ shareMode: mode, sharePreview: this._calcSharePreview(cal, mode) })
+  },
   // 配对守卫：未配对则跳转 pairing
   onShow() {
     app._initPromise.then(() => {
@@ -81,6 +127,7 @@ Page({
       tempImageUrl:   '',
       loadingText:    '查询中…',
       loadingSubtext: '正在估算这份料理',
+      loadingProgress: 60,
     })
     analyzeMealByText(hint)
       .then(result => {
@@ -119,6 +166,7 @@ Page({
           state:          'loading',
           loadingText:    '上传中…',
           loadingSubtext: '正在上传图片',
+          loadingProgress: 30,
         })
         this._analyze(tempFilePath)
       },
@@ -152,6 +200,7 @@ Page({
         this.setData({
           loadingText:    '识别中…',
           loadingSubtext: '正在估算这份料理',
+          loadingProgress: 75,
         })
 
         analyzeMeal(fileID, this.data.aiHint)
@@ -199,21 +248,23 @@ Page({
   onRatioTap(e) {
     const base  = this.data.baseFoodData
     const ratio = Number(e.currentTarget.dataset.ratio)
+    const newFoodData = {
+      ...base,
+      calories: Math.round(base.calories * ratio),
+      protein:  Math.round(base.protein  * ratio),
+      carbs:    Math.round(base.carbs    * ratio),
+      fat:      Math.round(base.fat      * ratio),
+    }
     this.setData({
       portionRatio: ratio,
-      foodData: {
-        ...base,
-        calories: Math.round(base.calories * ratio),
-        protein:  Math.round(base.protein  * ratio),
-        carbs:    Math.round(base.carbs    * ratio),
-        fat:      Math.round(base.fat      * ratio),
-      },
+      foodData:     newFoodData,
+      sharePreview: this._calcSharePreview(newFoodData.calories, this.data.shareMode),
     })
   },
 
   // 记录这一餐 → 写入云数据库 meals collection
   onSave() {
-    const { foodData } = this.data
+    const { foodData, shareMode } = this.data
     const { openid, userProfile, pairId } = app.globalData
 
     if (!openid || !userProfile || !pairId) {
@@ -224,24 +275,20 @@ Page({
 
     wx.showLoading({ title: '保存中…', mask: true })
 
-    addMeal({
-      pairId,
-      userId:    openid,
-      userName:  userProfile.userName,
-      role:      userProfile.role,
-      name:      foodData.name,
-      calories:  foodData.calories,
-      protein:   foodData.protein,
-      carbs:     foodData.carbs,
-      fat:       foodData.fat,
-      imageUrl:     foodData.imageUrl  || '',
-      hint:         foodData.hint      || '',
-      source:       foodData.source    || 'ai',
-      portionRatio: this.data.portionRatio,
-      date:         getCurrentDate(),
-      time:      getCurrentTime(),
-      createdAt: new Date(),
-    })
+    const [meRatio, taRatio] = this._getShareRatios(shareMode)
+    const sharedMealId = shareMode !== 'solo' ? 'shared_' + Date.now() : ''
+    const myMeal = this._buildMeal(meRatio, foodData, openid, userProfile.userName, userProfile.role, pairId, shareMode, sharedMealId)
+
+    const doSave = shareMode === 'solo'
+      ? addMeal(myMeal)
+      : getUsersByPairId(pairId).then(res => {
+          const ta = (res.data || []).find(u => u.openid !== openid)
+          if (!ta) throw new Error('找不到配对用户')
+          const taMeal = this._buildMeal(taRatio, foodData, ta.openid, ta.userName, ta.role, pairId, shareMode, sharedMealId)
+          return addMeals([myMeal, taMeal])
+        })
+
+    doSave
       .then(() => {
         wx.hideLoading()
         wx.showToast({ title: '已记录', icon: 'success', duration: 1200 })
@@ -249,6 +296,7 @@ Page({
           this.setData({
             state: 'idle', tempImageUrl: '', foodData: null,
             baseFoodData: null, portionRatio: 1, aiHint: '',
+            shareMode: 'solo', sharePreview: { meCalories: 0, taCalories: 0 },
             manualExpanded: false,
             manualForm: { name: '', calories: '', protein: '', carbs: '', fat: '' },
           })
@@ -266,6 +314,7 @@ Page({
     this.setData({
       state: 'idle', tempImageUrl: '', foodData: null,
       baseFoodData: null, portionRatio: 1,
+      shareMode: 'solo', sharePreview: { meCalories: 0, taCalories: 0 },
       manualExpanded: false,
       manualForm: { name: '', calories: '', protein: '', carbs: '', fat: '' },
     })

@@ -7,6 +7,8 @@ const addMeal = (mealData) => {
   return db.collection('meals').add({ data: mealData })
 }
 
+const addMeals = (mealList) => Promise.all(mealList.map(addMeal))
+
 const getMealsByDate = (dateStr, pairId) => {
   const db = wx.cloud.database()
   return db.collection('meals')
@@ -21,6 +23,11 @@ const getMealsByDate = (dateStr, pairId) => {
 const getUserByOpenId = (openid) => {
   const db = wx.cloud.database()
   return db.collection('users').where({ openid }).limit(1).get()
+}
+
+const getUsersByPairId = (pairId) => {
+  const db = wx.cloud.database()
+  return db.collection('users').where({ pairId }).get()
 }
 
 const createUser = ({ openid, role, userName, pairId }) => {
@@ -133,9 +140,9 @@ const updateUserGoals = ({ openid, goals }) => {
 
 module.exports = {
   // meals
-  addMeal, getMealsByDate,
+  addMeal, addMeals, getMealsByDate,
   // users
-  getUserByOpenId, createUser, updateUserPair, updateUserGoals,
+  getUserByOpenId, getUsersByPairId, createUser, updateUserPair, updateUserGoals,
   // pairs
   createPair, getPairByInviteCode, getPairByPairId, joinPair,
   // cloud

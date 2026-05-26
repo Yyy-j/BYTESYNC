@@ -59,6 +59,18 @@
     </view>
   </view>
 
+  <!-- ── 今日小结 ── -->
+  <view class="section">
+    <view class="summary-note card">
+      <view class="summary-note__content">
+        <text class="summary-note__label">今日小结</text>
+        <text class="summary-note__line1">{{summaryMessage.title}}</text>
+        <text class="summary-note__line2">{{summaryMessage.detail}}</text>
+      </view>
+      <image class="summary-note__image" src="/assets/icons/summary-duo.png" mode="aspectFit" />
+    </view>
+  </view>
+
   <!-- ── 今日记录列表 ── -->
   <view class="section">
     <text class="section-label">今日记录</text>

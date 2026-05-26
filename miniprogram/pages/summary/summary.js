@@ -25,6 +25,7 @@ Page({
     loading: false,
     goalEditing: false,
     goalInput: '',
+    summaryMessage: { title: '', detail: '' },
   },
 
   onLoad() {
@@ -102,7 +103,8 @@ Page({
           canDelete: f.userId === myOpenid,
         }))
 
-        this.setData({ me, ta, foods, loading: false })
+        const summaryMessage = this.getSummaryMessage(me, ta)
+        this.setData({ me, ta, foods, summaryMessage, loading: false })
       })
       .catch((err) => {
         console.error('[summary] 读取数据失败', err)
@@ -151,6 +153,67 @@ Page({
 
   onGoalInput(e) {
     this.setData({ goalInput: e.detail.value })
+  },
+
+  // ── 今日小结文案生成 ──────────────────────────────────────
+  getSummaryMessage(me, ta) {
+    const meRemain = (me.calorieGoal || 2000) - (me.calories || 0)
+    const taRemain = (ta.calorieGoal || 2000) - (ta.calories || 0)
+
+    // 两人都超标
+    if (meRemain < 0 && taRemain < 0) {
+      return {
+        title:  '今天吃得有点丰盛，不过没关系 💛',
+        detail: `你超出 ${Math.abs(meRemain)} kcal，Ta 超出 ${Math.abs(taRemain)} kcal，明天继续轻盈一点就好～`,
+      }
+    }
+    // 只有我超标
+    if (meRemain < 0) {
+      return {
+        title:  '今天整体不错，我这边稍微多了一点 💛',
+        detail: `你超出 ${Math.abs(meRemain)} kcal，Ta 还差 ${Math.max(taRemain, 0)} kcal，明天继续平衡一下就好～`,
+      }
+    }
+    // 只有 Ta 超标
+    if (taRemain < 0) {
+      return {
+        title:  '今天整体不错，Ta 那边稍微多了一点 💛',
+        detail: `你还差 ${Math.max(meRemain, 0)} kcal，Ta 超出 ${Math.abs(taRemain)} kcal，明天继续平衡一下就好～`,
+      }
+    }
+    // 两人都离目标很远
+    if (meRemain > 600 && taRemain > 600) {
+      return {
+        title:  '今天也和 Ta 好好吃饭了 🤍',
+        detail: `你还差 ${meRemain} kcal，Ta 还差 ${taRemain} kcal，慢慢吃，不着急～`,
+      }
+    }
+    // 两人都接近目标（差 0–200）
+    if (meRemain >= 0 && meRemain <= 200 && taRemain >= 0 && taRemain <= 200) {
+      return {
+        title:  '今天吃得很稳，快接近目标啦 🌿',
+        detail: `你只差 ${meRemain} kcal，Ta 只差 ${taRemain} kcal，今天状态很好！`,
+      }
+    }
+    // 我接近、Ta 还差较多
+    if (meRemain <= 200 && taRemain > 200) {
+      return {
+        title:  '我快到目标啦，Ta 再补一餐就好了 ✨',
+        detail: `你只差 ${meRemain} kcal，Ta 还差 ${taRemain} kcal，一起加油～`,
+      }
+    }
+    // Ta 接近、我还差较多
+    if (taRemain <= 200 && meRemain > 200) {
+      return {
+        title:  'Ta 快到目标了，我再努努力 ✨',
+        detail: `你还差 ${meRemain} kcal，Ta 只差 ${taRemain} kcal，继续加油哦～`,
+      }
+    }
+    // 两人都差 200–600（进度中等）
+    return {
+      title:  '今天进度不错，再吃一餐就更完整啦 ✨',
+      detail: `你还差 ${meRemain} kcal，Ta 还差 ${taRemain} kcal，继续加油哦！`,
+    }
   },
 
   onSaveGoal() {

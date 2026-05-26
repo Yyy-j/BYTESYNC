@@ -120,6 +120,53 @@
   margin-bottom: var(--spacing-md);
 }
 
+/* ── 今日小结卡片 ── */
+.summary-note {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: #F2F7F3;
+}
+
+.summary-note__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.summary-note__label {
+  display: block;
+  font-size: 20rpx;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  letter-spacing: 2rpx;
+  margin-bottom: 10rpx;
+}
+
+.summary-note__line1 {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.5;
+  margin-bottom: 8rpx;
+}
+
+.summary-note__line2 {
+  display: block;
+  font-size: 22rpx;
+  color: var(--color-text-secondary);
+  line-height: 1.65;
+}
+
+.summary-note__image {
+  width: 108rpx;
+  height: 108rpx;
+  flex-shrink: 0;
+  opacity: 0.92;
+}
+
 /* ── 食物列表（整体圆角卡片容器） ── */
 .food-list {
   border-radius: var(--radius-lg);
