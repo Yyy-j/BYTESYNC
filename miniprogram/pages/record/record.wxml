@@ -60,7 +60,7 @@
   <!-- ══════════════ LOADING 状态 ══════════════ -->
   <view wx:elif="{{state === 'loading'}}" class="loading-page">
 
-    <!-- 扫描框气泡 -->
+    <!-- 扫描框气泡（轻量装饰） -->
     <view class="lp-scan">
       <view class="lp-scan-frame">
         <view class="lp-scan-corner lp-scan-tl"></view>
@@ -72,12 +72,17 @@
       <text class="lp-scan-label">{{loadingText}}</text>
     </view>
 
-    <!-- 主插画 -->
-    <image class="lp-hero" src="/assets/icons/loading-hero.png" mode="aspectFit" />
+    <!-- 主插画区（核心视觉） -->
+    <!-- 建议将 /assets/icons/loading-hero.png 裁切为更紧的透明背景资源，否则即使放大容器，人物主体仍会偏小 -->
+    <view class="lp-hero-wrap">
+      <image class="lp-hero" src="/assets/icons/loading-hero.png" mode="widthFix" />
+    </view>
 
-    <!-- 文案 -->
-    <text class="lp-title">正在识别美食中 🤍</text>
-    <text class="lp-subtitle">请稍候，马上为你呈现结果～</text>
+    <!-- 文案组 -->
+    <view class="lp-text-group">
+      <text class="lp-title">正在识别美食中 🤍</text>
+      <text class="lp-subtitle">请稍候，马上为你呈现结果～</text>
+    </view>
 
     <!-- 进度条卡片 -->
     <view class="lp-progress-card">
