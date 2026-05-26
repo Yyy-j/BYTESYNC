@@ -73,7 +73,6 @@
     </view>
 
     <!-- 主插画区（核心视觉） -->
-    <!-- 建议将 /assets/icons/loading-hero.png 裁切为更紧的透明背景资源，否则即使放大容器，人物主体仍会偏小 -->
     <view class="lp-hero-wrap">
       <image class="lp-hero" src="/assets/icons/loading-hero.png" mode="widthFix" />
     </view>
