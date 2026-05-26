@@ -64,7 +64,7 @@ Page({
   },
   // ── 共享逻辑辅助 ─────────────────────────────────
   _getShareRatios(mode) {
-    const map = { solo: [1, 0], half: [0.5, 0.5], me_1_3: [1/3, 2/3], me_2_3: [2/3, 1/3] }
+    const map = { solo: [1, 0], ta_only: [0, 1], half: [0.5, 0.5], me_1_3: [1/3, 2/3], me_2_3: [2/3, 1/3] }
     return map[mode] || [1, 0]
   },
 
@@ -74,29 +74,44 @@ Page({
   },
 
   _buildMeal(ratio, foodData, userId, userName, role, pairId, shareMode, sharedMealId) {
+    const cal  = Math.round(foodData.calories * ratio)
+    const prot = Math.round(foodData.protein  * ratio)
+    const carb = Math.round(foodData.carbs    * ratio)
+    const ft   = Math.round(foodData.fat      * ratio)
     return {
       pairId, userId, userName, role,
-      name:         foodData.name,
-      calories:     Math.round(foodData.calories * ratio),
-      protein:      Math.round(foodData.protein  * ratio),
-      carbs:        Math.round(foodData.carbs    * ratio),
-      fat:          Math.round(foodData.fat      * ratio),
-      imageUrl:     foodData.imageUrl  || '',
-      hint:         foodData.hint      || '',
-      source:       foodData.source    || 'ai',
-      portionRatio: this.data.portionRatio,
+      name:             foodData.name,
+      calories:         cal,
+      protein:          prot,
+      carbs:            carb,
+      fat:              ft,
+      originalCalories: cal,
+      originalProtein:  prot,
+      originalCarbs:    carb,
+      originalFat:      ft,
+      imageUrl:         foodData.imageUrl  || '',
+      hint:             foodData.hint      || '',
+      source:           foodData.source    || 'ai',
+      portionRatio:     this.data.portionRatio,
       shareMode,
-      sharedMealId: sharedMealId || '',
-      date:         getCurrentDate(),
-      time:         getCurrentTime(),
-      createdAt:    new Date(),
+      sharedMealId:     sharedMealId || '',
+      date:             getCurrentDate(),
+      time:             getCurrentTime(),
+      createdAt:        new Date(),
     }
   },
 
   onShareModeChange(e) {
     const clicked = e.currentTarget.dataset.mode
-    const newMode = clicked === 'solo' ? 'solo'
-      : (this.data.shareMode === 'solo' ? 'half' : this.data.shareMode)
+    let newMode
+    if (clicked === 'solo') {
+      newMode = 'solo'
+    } else if (clicked === 'ta_only') {
+      newMode = 'ta_only'
+    } else {
+      // clicked === 'shared'：一起吃
+      newMode = (this.data.shareMode === 'solo' || this.data.shareMode === 'ta_only') ? 'half' : this.data.shareMode
+    }
     const cal = (this.data.foodData && this.data.foodData.calories) || 0
     this.setData({ shareMode: newMode, sharePreview: this._calcSharePreview(cal, newMode) })
   },
@@ -276,17 +291,32 @@ Page({
     wx.showLoading({ title: '保存中…', mask: true })
 
     const [meRatio, taRatio] = this._getShareRatios(shareMode)
-    const sharedMealId = shareMode !== 'solo' ? 'shared_' + Date.now() : ''
-    const myMeal = this._buildMeal(meRatio, foodData, openid, userProfile.userName, userProfile.role, pairId, shareMode, sharedMealId)
+    const sharedMealId = (shareMode !== 'solo' && shareMode !== 'ta_only') ? 'shared_' + Date.now() : ''
 
-    const doSave = shareMode === 'solo'
-      ? addMeal(myMeal)
-      : getUsersByPairId(pairId).then(res => {
-          const ta = (res.data || []).find(u => u.openid !== openid)
-          if (!ta) throw new Error('找不到配对用户')
-          const taMeal = this._buildMeal(taRatio, foodData, ta.openid, ta.userName, ta.role, pairId, shareMode, sharedMealId)
-          return addMeals([myMeal, taMeal])
-        })
+    // 根据 shareMode 决定保存逻辑
+    let doSave
+    if (shareMode === 'solo') {
+      // 只给自己记
+      const myMeal = this._buildMeal(meRatio, foodData, openid, userProfile.userName, userProfile.role, pairId, shareMode, '')
+      doSave = addMeal(myMeal)
+    } else if (shareMode === 'ta_only') {
+      // 只给 Ta 记
+      doSave = getUsersByPairId(pairId).then(res => {
+        const ta = (res.data || []).find(u => u.openid !== openid)
+        if (!ta) throw new Error('找不到配对用户')
+        const taMeal = this._buildMeal(taRatio, foodData, ta.openid, ta.userName, ta.role, pairId, shareMode, '')
+        return addMeal(taMeal)
+      })
+    } else {
+      // 一起吃：两个人各记一条
+      const myMeal = this._buildMeal(meRatio, foodData, openid, userProfile.userName, userProfile.role, pairId, shareMode, sharedMealId)
+      doSave = getUsersByPairId(pairId).then(res => {
+        const ta = (res.data || []).find(u => u.openid !== openid)
+        if (!ta) throw new Error('找不到配对用户')
+        const taMeal = this._buildMeal(taRatio, foodData, ta.openid, ta.userName, ta.role, pairId, shareMode, sharedMealId)
+        return addMeals([myMeal, taMeal])
+      })
+    }
 
     doSave
       .then(() => {

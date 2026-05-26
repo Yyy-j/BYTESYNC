@@ -121,6 +121,11 @@ const deleteMeal = (mealId) => {
   return db.collection('meals').doc(mealId).remove()
 }
 
+const updateMeal = (mealId, data) => {
+  const db = wx.cloud.database()
+  return db.collection('meals').doc(mealId).update({ data: { ...data, updatedAt: new Date() } })
+}
+
 const deleteCloudFile = (fileID) => {
   return new Promise((resolve, reject) => {
     wx.cloud.deleteFile({
@@ -140,7 +145,7 @@ const updateUserGoals = ({ openid, goals }) => {
 
 module.exports = {
   // meals
-  addMeal, addMeals, getMealsByDate,
+  addMeal, addMeals, getMealsByDate, updateMeal,
   // users
   getUserByOpenId, getUsersByPairId, createUser, updateUserPair, updateUserGoals,
   // pairs

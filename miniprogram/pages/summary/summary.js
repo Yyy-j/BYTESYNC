@@ -1,6 +1,6 @@
 // pages/summary/summary.js
 const { formatDate } = require('../../utils/formatter')
-const { getMealsByDate, deleteMeal, getPairByPairId, updateUserGoals } = require('../../utils/api')
+const { getMealsByDate, deleteMeal, updateMeal, getPairByPairId, updateUserGoals } = require('../../utils/api')
 const config = require('../../utils/config')
 
 const app = getApp()
@@ -90,17 +90,22 @@ Page({
 
         // 渲染时用当前用户视角覆写 user/userName，保证颜色和标签正确
         const foods = allFoods.map(f => ({
-          id:        f._id,
-          name:      f.name,
-          calories:  f.calories,
-          protein:   f.protein,
-          carbs:     f.carbs,
-          fat:       f.fat,
-          imageUrl:  f.imageUrl || '',
-          user:      f.userId === myOpenid ? 'me' : 'ta',
-          userName:  f.userId === myOpenid ? '我' : 'Ta',
-          time:      f.time,
-          canDelete: f.userId === myOpenid,
+          id:               f._id,
+          name:             f.name,
+          calories:         f.calories,
+          protein:          f.protein,
+          carbs:            f.carbs,
+          fat:              f.fat,
+          originalCalories: f.originalCalories ?? f.calories,
+          originalProtein:  f.originalProtein  ?? f.protein,
+          originalCarbs:    f.originalCarbs    ?? f.carbs,
+          originalFat:      f.originalFat      ?? f.fat,
+          imageUrl:         f.imageUrl || '',
+          user:             f.userId === myOpenid ? 'me' : 'ta',
+          userName:         f.userId === myOpenid ? '我' : 'Ta',
+          time:             f.time,
+          canDelete:        f.userId === myOpenid,
+          canEdit:          f.userId === myOpenid,
         }))
 
         const summaryMessage = this.getSummaryMessage(me, ta)
@@ -132,6 +137,36 @@ Page({
             wx.hideLoading()
             console.error('[summary] 删除失败', err)
             wx.showToast({ title: '删除失败，请重试', icon: 'none', duration: 2000 })
+          })
+      },
+    })
+  },
+
+  // ── 修改已记录卡路里 ─────────────────────────────────────
+  onEditMeal(e) {
+    const { id, originalCalories, originalProtein, originalCarbs, originalFat } = e.detail
+    wx.showActionSheet({
+      itemList: ['全部', '1/2', '1/3', '2/3'],
+      success: (res) => {
+        const ratios = [1, 0.5, 1/3, 2/3]
+        const ratio = ratios[res.tapIndex]
+        const updatedData = {
+          calories: Math.round(originalCalories * ratio),
+          protein:  Math.round(originalProtein  * ratio),
+          carbs:    Math.round(originalCarbs    * ratio),
+          fat:      Math.round(originalFat      * ratio),
+        }
+        wx.showLoading({ title: '保存中…', mask: true })
+        updateMeal(id, updatedData)
+          .then(() => {
+            wx.hideLoading()
+            wx.showToast({ title: '已更新', icon: 'success', duration: 1000 })
+            this._loadData(this.data.currentDate)
+          })
+          .catch((err) => {
+            wx.hideLoading()
+            console.error('[summary] 更新失败', err)
+            wx.showToast({ title: '更新失败，请重试', icon: 'none', duration: 2000 })
           })
       },
     })

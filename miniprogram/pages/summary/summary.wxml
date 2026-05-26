@@ -84,11 +84,17 @@
         protein="{{item.protein}}"
         carbs="{{item.carbs}}"
         fat="{{item.fat}}"
+        originalCalories="{{item.originalCalories}}"
+        originalProtein="{{item.originalProtein}}"
+        originalCarbs="{{item.originalCarbs}}"
+        originalFat="{{item.originalFat}}"
         user="{{item.user}}"
         userName="{{item.userName}}"
         time="{{item.time}}"
         canDelete="{{item.canDelete}}"
+        canEdit="{{item.canEdit}}"
         bind:delete="onDeleteMeal"
+        bind:edit="onEditMeal"
       />
     </view>
     <view wx:else class="empty-hint">

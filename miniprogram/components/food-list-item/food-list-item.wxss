@@ -91,10 +91,22 @@
 .macro-tag.carbs   { background: var(--color-carbs-bg);   color: var(--color-carbs);   }
 .macro-tag.fat     { background: var(--color-fat-bg);     color: var(--color-fat);     }
 
+.action-btns {
+  display: flex;
+  gap: 16rpx;
+  flex-shrink: 0;
+}
+
+.edit-btn {
+  font-size: var(--font-size-xs);
+  color: var(--color-primary, #6FCF97);
+  opacity: 0.8;
+  padding: 4rpx 8rpx;
+}
+
 .delete-btn {
   font-size: var(--font-size-xs);
   color: var(--color-warning, #EB5757);
   opacity: 0.6;
   padding: 4rpx 8rpx;
-  flex-shrink: 0;
 }

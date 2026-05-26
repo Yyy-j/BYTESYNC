@@ -16,6 +16,9 @@
       <text class="macro-tag carbs">碳水 {{carbs}}g</text>
       <text class="macro-tag fat">脂肪 {{fat}}g</text>
     </view>
-    <text wx:if="{{canDelete}}" class="delete-btn" catchtap="onDeleteTap">删除</text>
+    <view class="action-btns">
+      <text wx:if="{{canEdit}}" class="edit-btn" catchtap="onEditTap">修改</text>
+      <text wx:if="{{canDelete}}" class="delete-btn" catchtap="onDeleteTap">删除</text>
+    </view>
   </view>
 </view>

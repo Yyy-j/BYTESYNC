@@ -129,11 +129,14 @@
         <view class="share-chip {{shareMode === 'solo' ? 'active' : ''}}" data-mode="solo" bind:tap="onShareModeChange">
           <text>只记录给我</text>
         </view>
-        <view class="share-chip {{shareMode !== 'solo' ? 'active' : ''}}" data-mode="shared" bind:tap="onShareModeChange">
+        <view class="share-chip {{shareMode === 'ta_only' ? 'active' : ''}}" data-mode="ta_only" bind:tap="onShareModeChange">
+          <text>只给Ta记</text>
+        </view>
+        <view class="share-chip {{shareMode !== 'solo' && shareMode !== 'ta_only' ? 'active' : ''}}" data-mode="shared" bind:tap="onShareModeChange">
           <text>一起吃</text>
         </view>
       </view>
-      <view wx:if="{{shareMode !== 'solo'}}" class="split-section">
+      <view wx:if="{{shareMode !== 'solo' && shareMode !== 'ta_only'}}" class="split-section">
         <text class="split-title">怎么分？</text>
         <view class="split-row">
           <view class="split-chip {{shareMode === 'half' ? 'active' : ''}}" data-mode="half" bind:tap="onSplitTap">
