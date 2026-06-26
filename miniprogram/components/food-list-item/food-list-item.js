@@ -12,16 +12,23 @@ Component({
     originalProtein:  { type: Number,  value: 0  },
     originalCarbs:    { type: Number,  value: 0  },
     originalFat:      { type: Number,  value: 0  },
+    dishes:           { type: Array,   value: []   },
     user:             { type: String,  value: '' },  // 'me' | 'ta'
     userName:         { type: String,  value: '' },
     time:             { type: String,  value: '' },
     canDelete:        { type: Boolean, value: false },
     canEdit:          { type: Boolean, value: false },
   },
-  data: {},
+  data: {
+    detailExpanded: false,
+  },
   methods: {
     onTap() {
       this.triggerEvent('tap', { id: this.properties.mealId })
+    },
+    onToggleDetail() {
+      if (!this.properties.dishes || this.properties.dishes.length === 0) return
+      this.setData({ detailExpanded: !this.data.detailExpanded })
     },
     onDeleteTap() {
       this.triggerEvent('delete', { id: this.properties.mealId })

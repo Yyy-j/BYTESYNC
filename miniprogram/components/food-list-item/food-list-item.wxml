@@ -17,8 +17,21 @@
       <text class="macro-tag fat">脂肪 {{fat}}g</text>
     </view>
     <view class="action-btns">
+      <text wx:if="{{dishes && dishes.length}}" class="detail-btn" catchtap="onToggleDetail">
+        {{detailExpanded ? '收起' : '明细'}}
+      </text>
       <text wx:if="{{canEdit}}" class="edit-btn" catchtap="onEditTap">修改</text>
       <text wx:if="{{canDelete}}" class="delete-btn" catchtap="onDeleteTap">删除</text>
+    </view>
+  </view>
+  <view wx:if="{{detailExpanded && dishes && dishes.length}}" class="item-breakdown">
+    <view wx:for="{{dishes}}" wx:key="index" class="breakdown-row">
+      <text class="breakdown-name">{{item.name}}</text>
+      <text class="breakdown-cal">{{item.calories}} kcal</text>
+    </view>
+    <view class="breakdown-row breakdown-total">
+      <text class="breakdown-name">合计</text>
+      <text class="breakdown-cal">{{calories}} kcal</text>
     </view>
   </view>
 </view>

@@ -8,6 +8,7 @@ Page({
   data: {
     state:          'idle',    // 'idle' | 'loading' | 'result'
     tempImageUrl:   '',
+    currentFileID:  '',        // 当前识别使用的云存储 fileID，留作重识别用
     foodData:       null,
     baseFoodData:   null,
     portionRatio:   1,
@@ -19,6 +20,12 @@ Page({
     manualForm: { name: '', calories: '', protein: '', carbs: '', fat: '' },
     shareMode:    'solo',
     sharePreview: { meCalories: 0, taCalories: 0 },
+    // 识别后修改：补充提示词再识别
+    refineExpanded: false,
+    refineHint:     '',
+    // 识别后修改：直接改数据
+    editExpanded: false,
+    editForm:     { name: '', calories: '', protein: '', carbs: '', fat: '' },
   },
 
   onLoad() {},
@@ -53,6 +60,7 @@ Page({
       imageUrl: '',
       hint:     '',
       source:   'manual',
+      dishes:   [],
     }
     this.setData({
       baseFoodData:   foodData,
@@ -73,11 +81,29 @@ Page({
     return { meCalories: Math.round(calories * me), taCalories: Math.round(calories * ta) }
   },
 
+  // 把 dishes 数组按比例缩放（仅缩放 calories；name 原样保留）
+  _scaleDishes(dishes, ratio) {
+    if (!Array.isArray(dishes)) return []
+    return dishes
+      .filter(d => d && d.name)
+      .map(d => ({
+        name:     String(d.name).slice(0, 20),
+        calories: Math.round((Number(d.calories) || 0) * ratio),
+      }))
+  },
+
   _buildMeal(ratio, foodData, userId, userName, role, pairId, shareMode, sharedMealId) {
     const cal  = Math.round(foodData.calories * ratio)
     const prot = Math.round(foodData.protein  * ratio)
     const carb = Math.round(foodData.carbs    * ratio)
     const ft   = Math.round(foodData.fat      * ratio)
+    // base = 识别/手动录入的原始一人份；portionRatio = 用户选择的份量；ratio = 双人分摊比例
+    // 该条目最终占比 = portionRatio × ratio
+    const base             = this.data.baseFoodData || foodData
+    const baseDishes       = Array.isArray(base.dishes) ? base.dishes : []
+    const effectiveRatio   = (Number(this.data.portionRatio) || 1) * ratio
+    const baseDishesClean  = this._scaleDishes(baseDishes, 1)
+    const dishes           = this._scaleDishes(baseDishes, effectiveRatio)
     return {
       pairId, userId, userName, role,
       name:             foodData.name,
@@ -85,14 +111,25 @@ Page({
       protein:          prot,
       carbs:            carb,
       fat:              ft,
+      // ── original*：该条目写入时的值，summary 页“按比例修改”以此为基线（向后兼容）──
       originalCalories: cal,
       originalProtein:  prot,
       originalCarbs:    carb,
       originalFat:      ft,
+      // ── base*：原始一人份识别基准，不受份量/分摊影响，供后续重识别/手动改值使用 ──
+      baseCalories:     Math.round(base.calories || 0),
+      baseProtein:      Math.round(base.protein  || 0),
+      baseCarbs:        Math.round(base.carbs    || 0),
+      baseFat:          Math.round(base.fat      || 0),
+      // ── 卡路里明细 ──
+      dishes,                    // 当前条目实际值
+      originalDishes: dishes,    // 与 original* 对齐：summary 按比例缩放时的基线
+      baseDishes:     baseDishesClean,  // 原始一人份明细
       imageUrl:         foodData.imageUrl  || '',
       hint:             foodData.hint      || '',
       source:           foodData.source    || 'ai',
       portionRatio:     this.data.portionRatio,
+      shareRatio:       ratio,
       shareMode,
       sharedMealId:     sharedMealId || '',
       date:             getCurrentDate(),
@@ -153,6 +190,7 @@ Page({
           protein:         result.protein,
           carbs:           result.carbs,
           fat:             result.fat,
+          dishes:          Array.isArray(result.dishes) ? result.dishes : [],
           imageUrl:        '',
           previewImageUrl: '',
           hint,
@@ -223,28 +261,29 @@ Page({
             if (!result.success) {
               throw new Error(result.error || 'AI 识别失败')
             }
-            // 识别成功后删除云存储临时文件（不阻塞主流程）
-            deleteCloudFile(fileID).catch(err => console.warn('[record] 删除临时图片失败', err))
+            // fileID 保留到 data，供"补充说明再次识别"复用；保存/重拍/页面销毁时再清理
             const originalFoodData = {
               name:            result.name,
               calories:        result.calories,
               protein:         result.protein,
               carbs:           result.carbs,
               fat:             result.fat,
+              dishes:          Array.isArray(result.dishes) ? result.dishes : [],
               imageUrl:        '',
               previewImageUrl: this.data.tempImageUrl,
               hint:            this.data.aiHint,
               source:          'ai',
             }
             this.setData({
-              baseFoodData: originalFoodData,
-              foodData:     originalFoodData,
-              portionRatio: 1,
-              state:        'result',
+              baseFoodData:  originalFoodData,
+              foodData:      originalFoodData,
+              portionRatio:  1,
+              currentFileID: fileID,
+              state:         'result',
             })
           })
           .catch(err => {
-            // 识别失败也尝试删除云存储文件
+            // 识别失败时清理临时文件
             deleteCloudFile(fileID).catch(e => console.warn('[record] 删除临时图片失败', e))
             console.error('[record] AI 识别失败', err)
             wx.showToast({ title: '识别失败，请重试', icon: 'none', duration: 2000 })
@@ -269,12 +308,152 @@ Page({
       protein:  Math.round(base.protein  * ratio),
       carbs:    Math.round(base.carbs    * ratio),
       fat:      Math.round(base.fat      * ratio),
+      dishes:   this._scaleDishes(base.dishes, ratio),
     }
     this.setData({
       portionRatio: ratio,
       foodData:     newFoodData,
       sharePreview: this._calcSharePreview(newFoodData.calories, this.data.shareMode),
     })
+  },
+
+  // ── 识别后修改：补充说明再次识别 ─────────────────
+  onRefineToggle() {
+    this.setData({
+      refineExpanded: !this.data.refineExpanded,
+      editExpanded:   false,
+      refineHint:     '',
+    })
+  },
+
+  onRefineHintInput(e) {
+    this.setData({ refineHint: e.detail.value })
+  },
+
+  onRefineAnalyze() {
+    const extra = (this.data.refineHint || '').trim()
+    if (!extra) {
+      wx.showToast({ title: '请输入补充说明', icon: 'none', duration: 1500 })
+      return
+    }
+    const base       = this.data.baseFoodData || {}
+    const prevHint   = (base.hint || '').trim()
+    const mergedHint = prevHint ? `${prevHint}；${extra}` : extra
+    const fileID     = this.data.currentFileID
+    const isImage    = base.source !== 'text' && base.source !== 'manual' && !!fileID
+
+    this.setData({
+      state:          'loading',
+      loadingText:    '重新识别中…',
+      loadingSubtext: '正在按你的补充重新估算',
+      loadingProgress: 65,
+    })
+
+    const task = isImage
+      ? analyzeMeal(fileID, mergedHint)
+      : analyzeMealByText(mergedHint)
+
+    task
+      .then(result => {
+        if (!result.success) throw new Error(result.error || '重新识别失败')
+        const newFoodData = {
+          name:            result.name,
+          calories:        result.calories,
+          protein:         result.protein,
+          carbs:           result.carbs,
+          fat:             result.fat,
+          dishes:          Array.isArray(result.dishes) ? result.dishes : [],
+          imageUrl:        base.imageUrl        || '',
+          previewImageUrl: base.previewImageUrl || '',
+          hint:            mergedHint,
+          source:          base.source || (isImage ? 'ai' : 'text'),
+        }
+        this.setData({
+          baseFoodData:   newFoodData,
+          foodData:       newFoodData,
+          portionRatio:   1,
+          refineExpanded: false,
+          refineHint:     '',
+          state:          'result',
+          sharePreview:   this._calcSharePreview(newFoodData.calories, this.data.shareMode),
+        })
+        wx.showToast({ title: '已更新', icon: 'success', duration: 1000 })
+      })
+      .catch(err => {
+        console.error('[record] 重新识别失败', err)
+        wx.showToast({ title: '重新识别失败，请再试', icon: 'none', duration: 2000 })
+        this.setData({ state: 'result' })
+      })
+  },
+
+  // ── 识别后修改：直接改卡路里/宏量 ─────────────────
+  onEditToggle() {
+    const f = this.data.foodData || {}
+    this.setData({
+      editExpanded:   !this.data.editExpanded,
+      refineExpanded: false,
+      editForm: {
+        name:     f.name || '',
+        calories: String(f.calories || 0),
+        protein:  String(f.protein  || 0),
+        carbs:    String(f.carbs    || 0),
+        fat:      String(f.fat      || 0),
+      },
+    })
+  },
+
+  onEditInput(e) {
+    const field = e.currentTarget.dataset.field
+    this.setData({ [`editForm.${field}`]: e.detail.value })
+  },
+
+  onEditSave() {
+    const { name, calories, protein, carbs, fat } = this.data.editForm
+    const cal = Number(calories)
+    if (!cal || cal <= 0) {
+      wx.showToast({ title: '卡路里需大于 0', icon: 'none', duration: 1500 })
+      return
+    }
+    const base = this.data.baseFoodData || {}
+    const prev = this.data.foodData     || {}
+    // 用户直接改了数值；保留 dishes 仅作明细参考，不再强制联动
+    const newFoodData = {
+      ...prev,
+      name:     (name || prev.name || '手动记录').trim(),
+      calories: Math.round(cal),
+      protein:  Math.round(Number(protein) || 0),
+      carbs:    Math.round(Number(carbs)   || 0),
+      fat:      Math.round(Number(fat)     || 0),
+    }
+    // base 也同步更新成新的"一人份"基准，后续份量缩放从新值出发
+    const newBase = {
+      ...base,
+      name:     newFoodData.name,
+      calories: newFoodData.calories,
+      protein:  newFoodData.protein,
+      carbs:    newFoodData.carbs,
+      fat:      newFoodData.fat,
+    }
+    this.setData({
+      baseFoodData: newBase,
+      foodData:     newFoodData,
+      portionRatio: 1,
+      editExpanded: false,
+      sharePreview: this._calcSharePreview(newFoodData.calories, this.data.shareMode),
+    })
+    wx.showToast({ title: '已更新', icon: 'success', duration: 1000 })
+  },
+
+  // 清理云存储临时图片（识别成功后挂在 data 上）
+  _cleanupFileID() {
+    const fileID = this.data.currentFileID
+    if (!fileID) return
+    deleteCloudFile(fileID).catch(err => console.warn('[record] 删除临时图片失败', err))
+    this.setData({ currentFileID: '' })
+  },
+
+  onUnload() {
+    this._cleanupFileID()
   },
 
   // 记录这一餐 → 写入云数据库 meals collection
@@ -322,6 +501,7 @@ Page({
       .then(() => {
         wx.hideLoading()
         wx.showToast({ title: '已记录', icon: 'success', duration: 1200 })
+        this._cleanupFileID()
         setTimeout(() => {
           this.setData({
             state: 'idle', tempImageUrl: '', foodData: null,
@@ -329,6 +509,9 @@ Page({
             shareMode: 'solo', sharePreview: { meCalories: 0, taCalories: 0 },
             manualExpanded: false,
             manualForm: { name: '', calories: '', protein: '', carbs: '', fat: '' },
+            refineExpanded: false, refineHint: '',
+            editExpanded: false,
+            editForm: { name: '', calories: '', protein: '', carbs: '', fat: '' },
           })
         }, 1200)
       })
@@ -341,12 +524,16 @@ Page({
 
   // 重新拍摄（保留 aiHint，用户可能只是照片拍错了）
   onRetake() {
+    this._cleanupFileID()
     this.setData({
       state: 'idle', tempImageUrl: '', foodData: null,
       baseFoodData: null, portionRatio: 1,
       shareMode: 'solo', sharePreview: { meCalories: 0, taCalories: 0 },
       manualExpanded: false,
       manualForm: { name: '', calories: '', protein: '', carbs: '', fat: '' },
+      refineExpanded: false, refineHint: '',
+      editExpanded: false,
+      editForm: { name: '', calories: '', protein: '', carbs: '', fat: '' },
     })
     this.onCameraTap()
   },

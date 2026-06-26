@@ -1,7 +1,18 @@
 // pages/summary/summary.js
 const { formatDate } = require('../../utils/formatter')
-const { getMealsByDate, deleteMeal, updateMeal, getPairByPairId, updateUserGoals } = require('../../utils/api')
+const { getMealsByDate, deleteMeal, updateMeal, getPairByPairId, updateUserGoals, getUsersByPairId, analyzeMealByText } = require('../../utils/api')
 const config = require('../../utils/config')
+
+// 从 user 文档的 goals 中读取目标，缺失则回退到默认配置
+const resolveGoals = (user, fallback) => {
+  const g = (user && user.goals) || {}
+  return {
+    calorieGoal: g.calorieGoal || fallback.calorieGoal || 2000,
+    proteinGoal: g.proteinGoal || fallback.proteinGoal || 90,
+    carbsGoal:   g.carbsGoal   || fallback.carbsGoal   || 250,
+    fatGoal:     g.fatGoal     || fallback.fatGoal     || 60,
+  }
+}
 
 const app = getApp()
 
@@ -26,6 +37,18 @@ Page({
     goalEditing: false,
     goalInput: '',
     summaryMessage: { title: '', detail: '' },
+    // 编辑弹层：直接改数据
+    editMealVisible: false,
+    editingMealId:   '',
+    editingHasDishes: false,
+    editingMealForm: { name: '', calories: '', protein: '', carbs: '', fat: '' },
+    // 编辑弹层：补充说明再识别
+    refineMealVisible:   false,
+    refiningMealId:      '',
+    refiningPrevHint:    '',
+    refiningExtra:       '',
+    refiningPortionRatio: 1,
+    refiningShareRatio:  1,
   },
 
   onLoad() {
@@ -64,27 +87,43 @@ Page({
     const myOpenid = app.globalData.openid
     console.log('[summary] _loadData', { dateStr, pairId, myOpenid })
 
-    getMealsByDate(dateStr, pairId)
-      .then((res) => {
-        const allFoods = res.data || []
-        console.log('[summary] query result', allFoods.length, allFoods)
+    Promise.all([
+      getMealsByDate(dateStr, pairId),
+      getUsersByPairId(pairId).catch(err => {
+        console.warn('[summary] 读取配对用户失败', err)
+        return { data: [] }
+      }),
+    ])
+      .then(([mealsRes, usersRes]) => {
+        const allFoods = mealsRes.data || []
+        const users    = usersRes.data || []
+        console.log('[summary] query result', allFoods.length, 'meals,', users.length, 'users')
 
         // 按当前用户拆分两人（不依赖 role 字段，防止角色混乱）
         const meFoods = allFoods.filter(f => f.userId === myOpenid)
         const taFoods = allFoods.filter(f => f.userId !== myOpenid)
 
-        const myGoals = app.globalData.userProfile && app.globalData.userProfile.goals
+        // 双方目标统一从 users 集合读取，缺失回退到默认配置
+        const meUser = users.find(u => u.openid === myOpenid)
+        const taUser = users.find(u => u.openid !== myOpenid)
+        const meGoals = resolveGoals(meUser, config.goals.me)
+        const taGoals = resolveGoals(taUser, config.goals.ta)
+
+        // 同步刷新本地缓存的 me.goals，便于其他页面读取
+        if (meUser) {
+          app.globalData.userProfile = { ...(app.globalData.userProfile || {}), ...meUser }
+        }
+
         const me = {
           name: '我',
           role: 'me',
-          ...config.goals.me,
-          calorieGoal: (myGoals && myGoals.calorieGoal) || config.goals.me.calorieGoal || 2000,
+          ...meGoals,
           ...sumMacros(meFoods),
         }
         const ta = {
-          name: 'Ta',
+          name: (taUser && taUser.userName) || 'Ta',
           role: 'ta',
-          ...config.goals.ta,
+          ...taGoals,
           ...sumMacros(taFoods),
         }
 
@@ -100,6 +139,18 @@ Page({
           originalProtein:  f.originalProtein  ?? f.protein,
           originalCarbs:    f.originalCarbs    ?? f.carbs,
           originalFat:      f.originalFat      ?? f.fat,
+          baseCalories:     f.baseCalories     ?? f.originalCalories ?? f.calories,
+          baseProtein:      f.baseProtein      ?? f.originalProtein  ?? f.protein,
+          baseCarbs:        f.baseCarbs        ?? f.originalCarbs    ?? f.carbs,
+          baseFat:          f.baseFat          ?? f.originalFat      ?? f.fat,
+          dishes:           Array.isArray(f.dishes)         ? f.dishes         : [],
+          originalDishes:   Array.isArray(f.originalDishes) ? f.originalDishes : (Array.isArray(f.dishes) ? f.dishes : []),
+          baseDishes:       Array.isArray(f.baseDishes)     ? f.baseDishes     : (Array.isArray(f.originalDishes) ? f.originalDishes : (Array.isArray(f.dishes) ? f.dishes : [])),
+          source:           f.source || '',
+          hint:             f.hint   || '',
+          portionRatio:     f.portionRatio ?? 1,
+          shareRatio:       f.shareRatio   ?? 1,
+          shareMode:        f.shareMode    || 'solo',
           imageUrl:         f.imageUrl || '',
           user:             f.userId === myOpenid ? 'me' : 'ta',
           userName:         f.userId === myOpenid ? '我' : 'Ta',
@@ -144,17 +195,46 @@ Page({
 
   // ── 修改已记录卡路里 ─────────────────────────────────────
   onEditMeal(e) {
-    const { id, originalCalories, originalProtein, originalCarbs, originalFat } = e.detail
+    const { id } = e.detail
+    const food = (this.data.foods || []).find(f => f.id === id)
+    if (!food) return
+    // 走过 AI/文字识别且原 hint 非空才提供"重新识别"；纯 manual 不重识别
+    const canRefine = food.source && food.source !== 'manual'
+    const items = ['调整份量', '直接编辑数据']
+    if (canRefine) items.push('补充说明再识别')
+    wx.showActionSheet({
+      itemList: items,
+      success: (res) => {
+        const action = items[res.tapIndex]
+        if (action === '调整份量')         this._pickPortion(food)
+        else if (action === '直接编辑数据')  this._openEditMealModal(food)
+        else if (action === '补充说明再识别') this._openRefineMealModal(food)
+      },
+    })
+  },
+
+  // 按比例缩放（沿用旧逻辑）
+  _pickPortion(food) {
+    const originalDishes = (food && food.originalDishes) || []
+    const { id, originalCalories, originalProtein, originalCarbs, originalFat } = food
     wx.showActionSheet({
       itemList: ['全部', '1/2', '1/3', '2/3'],
       success: (res) => {
         const ratios = [1, 0.5, 1/3, 2/3]
         const ratio = ratios[res.tapIndex]
+        const scaledDishes = originalDishes
+          .filter(d => d && d.name)
+          .map(d => ({
+            name:     String(d.name).slice(0, 20),
+            calories: Math.round((Number(d.calories) || 0) * ratio),
+          }))
         const updatedData = {
           calories: Math.round(originalCalories * ratio),
           protein:  Math.round(originalProtein  * ratio),
           carbs:    Math.round(originalCarbs    * ratio),
           fat:      Math.round(originalFat      * ratio),
+          dishes:   scaledDishes,
+          shareRatio: ratio,
         }
         wx.showLoading({ title: '保存中…', mask: true })
         updateMeal(id, updatedData)
@@ -171,6 +251,146 @@ Page({
       },
     })
   },
+
+  // ── 直接编辑弹层 ─────────────────────────────────────
+  _openEditMealModal(food) {
+    this.setData({
+      editMealVisible:  true,
+      editingMealId:    food.id,
+      editingHasDishes: !!(food.dishes && food.dishes.length),
+      editingMealForm: {
+        name:     food.name || '',
+        calories: String(food.calories || 0),
+        protein:  String(food.protein  || 0),
+        carbs:    String(food.carbs    || 0),
+        fat:      String(food.fat      || 0),
+      },
+    })
+  },
+
+  onEditMealInput(e) {
+    const field = e.currentTarget.dataset.field
+    this.setData({ [`editingMealForm.${field}`]: e.detail.value })
+  },
+
+  onCloseEditMeal() {
+    this.setData({ editMealVisible: false, editingMealId: '' })
+  },
+
+  onSaveEditMeal() {
+    const { name, calories, protein, carbs, fat } = this.data.editingMealForm
+    const cal = Number(calories)
+    if (!cal || cal <= 0) {
+      wx.showToast({ title: '卡路里需大于 0', icon: 'none', duration: 1500 })
+      return
+    }
+    const updatedData = {
+      name:     (name || '').trim() || '记录',
+      calories: Math.round(cal),
+      protein:  Math.round(Number(protein) || 0),
+      carbs:    Math.round(Number(carbs)   || 0),
+      fat:      Math.round(Number(fat)     || 0),
+    }
+    wx.showLoading({ title: '保存中…', mask: true })
+    updateMeal(this.data.editingMealId, updatedData)
+      .then(() => {
+        wx.hideLoading()
+        wx.showToast({ title: '已更新', icon: 'success', duration: 1000 })
+        this.setData({ editMealVisible: false, editingMealId: '' })
+        this._loadData(this.data.currentDate)
+      })
+      .catch(err => {
+        wx.hideLoading()
+        console.error('[summary] 更新失败', err)
+        wx.showToast({ title: '更新失败，请重试', icon: 'none', duration: 2000 })
+      })
+  },
+
+  // ── 补充说明再识别弹层 ─────────────────────────────────
+  _openRefineMealModal(food) {
+    this.setData({
+      refineMealVisible:   true,
+      refiningMealId:      food.id,
+      refiningPrevHint:    food.hint || '',
+      refiningExtra:       '',
+      refiningPortionRatio: food.portionRatio || 1,
+      refiningShareRatio:  food.shareRatio   || 1,
+    })
+  },
+
+  onRefineMealInput(e) {
+    this.setData({ refiningExtra: e.detail.value })
+  },
+
+  onCloseRefineMeal() {
+    this.setData({ refineMealVisible: false, refiningMealId: '' })
+  },
+
+  onSaveRefineMeal() {
+    const extra = (this.data.refiningExtra || '').trim()
+    if (!extra) {
+      wx.showToast({ title: '请输入补充说明', icon: 'none', duration: 1500 })
+      return
+    }
+    const prev    = (this.data.refiningPrevHint || '').trim()
+    const merged  = prev ? `${prev}；${extra}` : extra
+    const portion = Number(this.data.refiningPortionRatio) || 1
+    const share   = Number(this.data.refiningShareRatio)   || 1
+    const r       = portion * share
+
+    wx.showLoading({ title: '重新识别中…', mask: true })
+    analyzeMealByText(merged)
+      .then(result => {
+        if (!result.success) throw new Error(result.error || '重新识别失败')
+        const baseDishes = (Array.isArray(result.dishes) ? result.dishes : [])
+          .filter(d => d && d.name)
+          .map(d => ({ name: String(d.name).slice(0, 20), calories: Math.round(Number(d.calories) || 0) }))
+        const dishes = baseDishes.map(d => ({ name: d.name, calories: Math.round(d.calories * r) }))
+        const baseCal  = Math.round(Number(result.calories) || 0)
+        const baseProt = Math.round(Number(result.protein)  || 0)
+        const baseCarb = Math.round(Number(result.carbs)    || 0)
+        const baseFat  = Math.round(Number(result.fat)      || 0)
+        const cal  = Math.round(baseCal  * r)
+        const prot = Math.round(baseProt * r)
+        const carb = Math.round(baseCarb * r)
+        const ft   = Math.round(baseFat  * r)
+        return updateMeal(this.data.refiningMealId, {
+          name:             String(result.name || '').slice(0, 30) || '记录',
+          calories:         cal,
+          protein:          prot,
+          carbs:            carb,
+          fat:              ft,
+          // 重置 original* 作为新的"按比例修改"基线
+          originalCalories: cal,
+          originalProtein:  prot,
+          originalCarbs:    carb,
+          originalFat:      ft,
+          // 重置 base* 作为新的一人份基准
+          baseCalories:     baseCal,
+          baseProtein:      baseProt,
+          baseCarbs:        baseCarb,
+          baseFat:          baseFat,
+          dishes,
+          originalDishes:   dishes,
+          baseDishes,
+          hint:             merged,
+          source:           'text',
+        })
+      })
+      .then(() => {
+        wx.hideLoading()
+        wx.showToast({ title: '已更新', icon: 'success', duration: 1000 })
+        this.setData({ refineMealVisible: false, refiningMealId: '', refiningExtra: '' })
+        this._loadData(this.data.currentDate)
+      })
+      .catch(err => {
+        wx.hideLoading()
+        console.error('[summary] 重新识别失败', err)
+        wx.showToast({ title: '重新识别失败', icon: 'none', duration: 2000 })
+      })
+  },
+
+  _noop() {},
 
   onDateChange(e) {
     const { direction } = e.detail

@@ -111,8 +111,64 @@
         protein="{{foodData.protein}}"
         fat="{{foodData.fat}}"
         carbs="{{foodData.carbs}}"
+        dishes="{{foodData.dishes}}"
         imageUrl="{{foodData.previewImageUrl || foodData.imageUrl}}"
       />
+    </view>
+
+    <!-- 识别后修改入口 -->
+    <view class="modify-section">
+      <view class="modify-chips">
+        <view class="modify-chip {{refineExpanded ? 'active' : ''}}" bind:tap="onRefineToggle">
+          <text>补充说明再识别</text>
+        </view>
+        <view class="modify-chip {{editExpanded ? 'active' : ''}}" bind:tap="onEditToggle">
+          <text>手动改数据</text>
+        </view>
+      </view>
+
+      <!-- 补充提示词面板 -->
+      <view wx:if="{{refineExpanded}}" class="modify-panel">
+        <textarea
+          class="modify-textarea"
+          value="{{refineHint}}"
+          placeholder="例如：去掉酱料 / 这是双层不是单层 / 肉饼其实是鸡肉"
+          placeholder-class="hint-placeholder"
+          maxlength="80"
+          auto-height
+          show-confirm-bar="{{false}}"
+          bind:input="onRefineHintInput"
+        />
+        <button class="modify-save-btn" bind:tap="onRefineAnalyze">重新识别</button>
+      </view>
+
+      <!-- 手动改数据面板 -->
+      <view wx:if="{{editExpanded}}" class="modify-panel">
+        <view class="manual-row">
+          <text class="manual-label">名称</text>
+          <input class="manual-input" value="{{editForm.name}}" data-field="name" bind:input="onEditInput" />
+        </view>
+        <view class="manual-row">
+          <text class="manual-label">卡路里 <text class="manual-required">*</text></text>
+          <input class="manual-input" value="{{editForm.calories}}" placeholder="千卡" type="digit" data-field="calories" bind:input="onEditInput" />
+        </view>
+        <view class="manual-row">
+          <text class="manual-label">蛋白质</text>
+          <input class="manual-input" value="{{editForm.protein}}" placeholder="0 克" type="digit" data-field="protein" bind:input="onEditInput" />
+        </view>
+        <view class="manual-row">
+          <text class="manual-label">碳水化合物</text>
+          <input class="manual-input" value="{{editForm.carbs}}" placeholder="0 克" type="digit" data-field="carbs" bind:input="onEditInput" />
+        </view>
+        <view class="manual-row">
+          <text class="manual-label">脂肪</text>
+          <input class="manual-input" value="{{editForm.fat}}" placeholder="0 克" type="digit" data-field="fat" bind:input="onEditInput" />
+        </view>
+        <text wx:if="{{foodData.dishes && foodData.dishes.length}}" class="modify-tip">
+          手动修改后，明细与总热量可能不一致
+        </text>
+        <button class="modify-save-btn" bind:tap="onEditSave">保存修改</button>
+      </view>
     </view>
 
     <!-- 份量快捷调整 -->

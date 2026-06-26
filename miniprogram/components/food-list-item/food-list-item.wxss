@@ -104,9 +104,56 @@
   padding: 4rpx 8rpx;
 }
 
+.detail-btn {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  opacity: 0.8;
+  padding: 4rpx 8rpx;
+}
+
 .delete-btn {
   font-size: var(--font-size-xs);
   color: var(--color-warning, #EB5757);
   opacity: 0.6;
   padding: 4rpx 8rpx;
+}
+
+/* ── 卡路里明细（展开后） ── */
+.item-breakdown {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: rgba(111, 207, 151, 0.06);
+  border-radius: var(--radius-md);
+}
+
+.item-breakdown .breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6rpx 0;
+}
+
+.item-breakdown .breakdown-name {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  flex: 1;
+  margin-right: var(--spacing-sm);
+}
+
+.item-breakdown .breakdown-cal {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.item-breakdown .breakdown-total {
+  margin-top: 4rpx;
+  padding-top: 8rpx;
+  border-top: 1rpx dashed var(--color-border);
+}
+
+.item-breakdown .breakdown-total .breakdown-name,
+.item-breakdown .breakdown-total .breakdown-cal {
+  color: var(--color-primary-dark);
+  font-weight: 600;
 }

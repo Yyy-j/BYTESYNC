@@ -83,3 +83,50 @@
   font-size: var(--font-size-xs);
   color: var(--color-text-tertiary);
 }
+
+/* ── 卡路里明细 ── */
+.breakdown {
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-md);
+  border-top: 1rpx solid var(--color-border);
+}
+
+.breakdown-title {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  margin-bottom: var(--spacing-sm);
+  letter-spacing: 1rpx;
+}
+
+.breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8rpx 0;
+}
+
+.breakdown-name {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  flex: 1;
+  margin-right: var(--spacing-sm);
+}
+
+.breakdown-cal {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.breakdown-total {
+  margin-top: 4rpx;
+  padding-top: 12rpx;
+  border-top: 1rpx dashed var(--color-border);
+}
+
+.breakdown-total .breakdown-name,
+.breakdown-total .breakdown-cal {
+  color: var(--color-primary-dark);
+  font-weight: 600;
+}
