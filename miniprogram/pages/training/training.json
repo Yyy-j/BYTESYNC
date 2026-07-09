@@ -1,4 +1,7 @@
 {
   "navigationBarTitleText": "训练",
-  "usingComponents": {}
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "training-exercise-card": "/components/training-exercise-card/training-exercise-card"
+  }
 }

@@ -1,0 +1,99 @@
+<!-- components/training-exercise-card/training-exercise-card.wxml — 训练打卡组件 -->
+<view class="exercise-card card">
+  <!-- 动作信息 -->
+  <view class="exercise-header" bind:tap="toggleInput">
+    <view class="exercise-info">
+      <text class="exercise-name">{{exercise.exerciseName}}</text>
+      <text class="exercise-category">{{exercise.category || '其他'}}</text>
+    </view>
+    <view class="exercise-progress">
+      <text class="progress-text {{exercise.completedSets >= exercise.targetSets ? 'completed' : ''}}">
+        {{exercise.completedSets || 0}} / {{exercise.targetSets || 0}}
+      </text>
+    </view>
+  </view>
+
+  <!-- 目标信息 -->
+  <view class="exercise-target">
+    <block wx:if="{{exercise.itemType !== 'cardio'}}">
+      <text class="target-item">{{exercise.targetWeight || 0}}kg × {{exercise.targetReps || 12}}次</text>
+    </block>
+    <block wx:else>
+      <text class="target-item">{{exercise.targetDuration || 0}}分钟</text>
+    </block>
+  </view>
+
+  <!-- 打卡按钮 -->
+  <view class="checkin-section">
+    <button 
+      class="checkin-btn {{exercise.completedSets >= exercise.targetSets ? 'disabled' : ''}}"
+      disabled="{{exercise.completedSets >= exercise.targetSets || isSubmitting}}"
+      loading="{{isSubmitting}}"
+      bind:tap="onCheckin"
+    >
+      <text wx:if="{{exercise.completedSets >= exercise.targetSets}}">已完成</text>
+      <text wx:else>+1 组</text>
+    </button>
+  </view>
+
+  <!-- 输入区域（可展开） -->
+  <view wx:if="{{showInput}}" class="input-section">
+    <view class="input-row" wx:if="{{exercise.itemType !== 'cardio'}}">
+      <view class="input-group">
+        <text class="input-label">重量</text>
+        <input 
+          class="input-field" 
+          type="digit" 
+          placeholder="kg"
+          value="{{inputWeight}}"
+          bindinput="onWeightInput"
+        />
+      </view>
+      <view class="input-group">
+        <text class="input-label">次数</text>
+        <input 
+          class="input-field" 
+          type="number" 
+          placeholder="次"
+          value="{{inputReps}}"
+          bindinput="onRepsInput"
+        />
+      </view>
+    </view>
+    <view class="input-row">
+      <view class="input-group">
+        <text class="input-label">RPE</text>
+        <input 
+          class="input-field" 
+          type="number" 
+          placeholder="1-10"
+          value="{{inputRpe}}"
+          bindinput="onRpeInput"
+        />
+      </view>
+      <view class="input-group flex-1">
+        <text class="input-label">备注</text>
+        <input 
+          class="input-field" 
+          type="text" 
+          placeholder="可选"
+          value="{{inputRemark}}"
+          bindinput="onRemarkInput"
+        />
+      </view>
+    </view>
+  </view>
+
+  <!-- 已完成组详情 -->
+  <view wx:if="{{exercise.setDetails && exercise.setDetails.length > 0}}" class="set-details">
+    <view class="set-detail-item" wx:for="{{exercise.setDetails}}" wx:key="requestId">
+      <text class="set-number">第{{index + 1}}组</text>
+      <text class="set-info">
+        <text wx:if="{{item.weight !== undefined}}">{{item.weight}}kg</text>
+        <text wx:if="{{item.reps !== undefined}}"> × {{item.reps}}</text>
+        <text wx:if="{{item.rpe !== undefined}}"> ｜ RPE {{item.rpe}}</text>
+      </text>
+      <text wx:if="{{item.remark}}" class="set-remark">{{item.remark}}</text>
+    </view>
+  </view>
+</view>

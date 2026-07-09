@@ -1,61 +1,107 @@
 // pages/training/training.js — 训练首页
-// 展示训练模板状态，支持创建或编辑模板
+// 展示当前周计划和打卡功能，支持日期切换
 
-const { getTrainingTemplate } = require('../../utils/training-api')
+const { getTrainingTemplate, getOrCreateTrainingWeek } = require('../../utils/training-api')
+const { getWeekId, getDayIndex, formatLocalDate } = require('../../utils/training-time')
 
 const app = getApp()
+
+// 星期显示文案
+const DAY_NAMES = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 
 Page({
   data: {
     // 页面状态：loading | empty | loaded | error
     state: 'loading',
+    // 错误信息
+    errorMsg: '',
     // 模板数据
     template: null,
-    // 错误信息
-    errorMsg: ''
+    // 当前周计划
+    weekPlan: null,
+    weekDocId: '',
+    // 日期切换
+    dayNames: DAY_NAMES,
+    selectedDayIndex: 0,  // 0=周一, 6=周日
+    todayDayIndex: 0,
+    // 当前日期的训练项目
+    currentDayExercises: [],
+    // 是否刷新中
+    isRefreshing: false
   },
 
   onLoad() {
-    // 等待 app 初始化完成后加载模板
-    this._loadTemplate()
+    this._loadData()
   },
 
   onShow() {
     // 从编辑页返回时刷新
     if (this._needRefresh) {
       this._needRefresh = false
-      this._loadTemplate()
+      this._loadData()
     }
   },
 
   /**
-   * 加载训练模板
+   * 下拉刷新
    */
-  async _loadTemplate() {
+  async onPullDownRefresh() {
+    if (this.data.isRefreshing) return
+    this.setData({ isRefreshing: true })
+    try {
+      await this._loadData()
+    } finally {
+      this.setData({ isRefreshing: false })
+      wx.stopPullDownRefresh()
+    }
+  },
+
+  /**
+   * 加载数据：模板和周计划
+   */
+  async _loadData() {
     this.setData({ state: 'loading', errorMsg: '' })
 
     try {
       // 等待 app 初始化完成
       await app._initPromise
 
+      // 获取今天是周几
+      const todayDayIndex = getDayIndex(new Date())
+
       // 获取模板
-      const result = await getTrainingTemplate()
+      const templateResult = await getTrainingTemplate()
       
-      if (result.template) {
-        // 有模板
-        this.setData({
-          state: 'loaded',
-          template: result.template
-        })
-      } else {
+      if (!templateResult.template) {
         // 无模板
         this.setData({
           state: 'empty',
-          template: null
+          template: null,
+          todayDayIndex,
+          selectedDayIndex: todayDayIndex
         })
+        return
       }
+
+      // 有模板，获取或创建当前周计划
+      const template = templateResult.template
+      const weekResult = await getOrCreateTrainingWeek()
+      const weekPlan = weekResult.week
+
+      this.setData({
+        state: 'loaded',
+        template,
+        weekPlan,
+        weekDocId: weekPlan._id,
+        todayDayIndex,
+        selectedDayIndex: todayDayIndex
+      })
+
+      // 更新当日训练项目
+      this._updateCurrentDayExercises(todayDayIndex)
+
     } catch (err) {
-      console.error('[training] 加载模板失败', err)
+      console.error('[training] 加载数据失败', err)
       this.setData({
         state: 'error',
         errorMsg: err.message || '加载失败'
@@ -64,23 +110,61 @@ Page({
   },
 
   /**
+   * 更新当前日期的训练项目
+   */
+  _updateCurrentDayExercises(dayIndex) {
+    const { weekPlan } = this.data
+    if (!weekPlan || !weekPlan.days) {
+      this.setData({ currentDayExercises: [] })
+      return
+    }
+
+    const dayPlan = weekPlan.days.find(d => d.dayIndex === dayIndex)
+    const exercises = dayPlan?.exercises || []
+
+    this.setData({ currentDayExercises: exercises })
+  },
+
+  /**
+   * 切换日期
+   */
+  onDayChange(e) {
+    const dayIndex = parseInt(e.currentTarget.dataset.day, 10)
+    if (dayIndex === this.data.selectedDayIndex) return
+
+    this.setData({ selectedDayIndex: dayIndex })
+    this._updateCurrentDayExercises(dayIndex)
+  },
+
+  /**
    * 重试加载
    */
   onRetry() {
-    this._loadTemplate()
+    this._loadData()
   },
 
   /**
    * 跳转到模板编辑页
    */
   onEditTemplate() {
-    // 标记需要刷新
     this._needRefresh = true
-    
-    // 传递是否已有模板的信息
     const hasTemplate = this.data.template ? '1' : '0'
     wx.navigateTo({
       url: `/pages/training-template/training-template?hasTemplate=${hasTemplate}`
     })
+  },
+
+  /**
+   * 打卡成功回调，刷新周计划
+   */
+  async onCheckinSuccess() {
+    try {
+      const weekResult = await getOrCreateTrainingWeek()
+      const weekPlan = weekResult.week
+      this.setData({ weekPlan, weekDocId: weekPlan._id })
+      this._updateCurrentDayExercises(this.data.selectedDayIndex)
+    } catch (err) {
+      console.error('[training] 刷新周计划失败', err)
+    }
   }
 })

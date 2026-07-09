@@ -165,12 +165,16 @@ Page({
    */
   onSelectExercise(e) {
     const exercise = e.currentTarget.dataset.exercise
-    
+
+    // 自定义动作始终返回 sourceType: 'custom'
+    // 根据当前 tab 或数据判断来源类型
+    const isCustom = this.data.currentTab === 'custom' || exercise.sourceType === 'custom'
+
     // 构建返回数据
     const returnData = {
       exerciseId: exercise.id || exercise._id,
       exerciseName: exercise.name,
-      sourceType: exercise.sourceType || 'fixed',
+      sourceType: isCustom ? 'custom' : 'fixed',
       itemType: exercise.itemType || 'strength',
       category: exercise.category || '',
       targetSets: exercise.defaultSets || 4,

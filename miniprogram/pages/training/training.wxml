@@ -4,6 +4,9 @@
   <!-- 页面标题 -->
   <view class="header">
     <text class="page-title">训练</text>
+    <view wx:if="{{state === 'loaded'}}" class="edit-link" bind:tap="onEditTemplate">
+      <text>编辑模板</text>
+    </view>
   </view>
 
   <!-- ══════════════ Loading 状态 ══════════════ -->
@@ -33,26 +36,41 @@
     </view>
   </view>
 
-  <!-- ══════════════ 有模板状态 ══════════════ -->
+  <!-- ══════════════ 有周计划状态 ══════════════ -->
   <view wx:elif="{{state === 'loaded'}}" class="content">
-    <view class="template-card card">
-      <view class="template-header">
-        <text class="template-title">我的训练模板</text>
-        <text class="template-version">v{{template.version || 1}}</text>
+
+    <!-- 日期切换 -->
+    <scroll-view class="day-tabs" scroll-x enable-flex>
+      <view
+        wx:for="{{dayNames}}"
+        wx:key="index"
+        class="day-tab {{selectedDayIndex === index ? 'active' : ''}} {{todayDayIndex === index ? 'today' : ''}}"
+        data-day="{{index}}"
+        bind:tap="onDayChange"
+      >
+        <text class="day-name">{{item}}</text>
+        <text wx:if="{{todayDayIndex === index}}" class="today-dot">·</text>
       </view>
-      
-      <view class="template-info">
-        <text class="template-desc">点击下方按钮编辑你的每周训练安排</text>
+    </scroll-view>
+
+    <!-- 训练列表 -->
+    <view class="exercise-list">
+      <!-- 休息日 -->
+      <view wx:if="{{currentDayExercises.length === 0}}" class="rest-day card">
+        <text class="rest-icon">😴</text>
+        <text class="rest-text">休息日</text>
       </view>
 
-      <button class="primary-btn edit-btn" bind:tap="onEditTemplate">编辑训练计划</button>
+      <!-- 训练卡片 -->
+      <training-exercise-card
+        wx:for="{{currentDayExercises}}"
+        wx:key="weekItemId"
+        exercise="{{item}}"
+        weekDocId="{{weekDocId}}"
+        bind:checkinSuccess="onCheckinSuccess"
+      />
     </view>
 
-    <!-- 提示卡片 -->
-    <view class="tip-card card">
-      <text class="tip-icon">💡</text>
-      <text class="tip-text">模板更改将从下周一开始生效</text>
-    </view>
   </view>
 
 </view>

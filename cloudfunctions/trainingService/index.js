@@ -8,8 +8,9 @@ const validation = require('./lib/validation')
 const { TRAINING_ERRORS } = validation
 
 // 初始化云开发
+// 本地调试时 DYNAMIC_CURRENT_ENV 可能无法获取，使用 fallback
 cloud.init({
-  env: 'cloud1-5gpu3nmc673b62c2'
+  env: cloud.DYNAMIC_CURRENT_ENV || 'cloud1-5gpu3nmc673b62c2'
 })
 
 const db = cloud.database()
