@@ -403,20 +403,128 @@ function createCustomExerciseObject({ openid, exerciseData, now }) {
  */
 function isDuplicateKeyError(err) {
   if (!err) return false
-  
+
   const message = err.message || ''
   const errCode = err.errCode || err.code
-  
+
   // 微信云数据库重复键错误
   if (errCode === -502005) return true
   if (errCode === 11000) return true
-  
+
   // MongoDB 重复键错误模式
   if (message.includes('duplicate key')) return true
   if (message.includes('E11000')) return true
   if (message.includes('唯一索引冲突')) return true
-  
+
   return false
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 当前周同步逻辑
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 同步当前周计划与模板
+ * 按 itemId 匹配，保留打卡记录
+ *
+ * @param {Object} params
+ * @param {Object} params.template - 最新模板
+ * @param {Object} params.existingWeek - 当前周计划
+ * @param {string} params.weekId - 周标识
+ * @param {Date} params.now - 当前时间
+ * @returns {Object} 同步后的周计划 days 数组
+ */
+function syncWeekWithTemplate({ template, existingWeek, weekId, now }) {
+  const weekDates = time.getWeekDates(weekId)
+
+  // 建立现有周计划的 sourceItemId -> exercise 映射（所有天）
+  const existingMap = new Map()
+  for (const day of existingWeek.days || []) {
+    for (const ex of day.exercises || []) {
+      if (ex.sourceItemId) {
+        existingMap.set(ex.sourceItemId, ex)
+      }
+    }
+  }
+
+  // 按模板重建每天的动作列表
+  const syncedDays = template.days.map(templateDay => {
+    const dayIndex = templateDay.dayIndex
+    const exercises = (templateDay.exercises || []).map(templateEx => {
+      const existing = existingMap.get(templateEx.itemId)
+
+      if (existing) {
+        // 已存在：保留 weekItemId、completedSets、setDetails，同步其他字段
+        // targetSets 不得小于 completedSets
+        const newTargetSets = Math.max(templateEx.targetSets, existing.completedSets || 0)
+
+        return {
+          weekItemId: existing.weekItemId,
+          sourceItemId: templateEx.itemId,
+          exerciseId: templateEx.exerciseId,
+          exerciseName: templateEx.exerciseName,
+          sourceType: templateEx.sourceType,
+          itemType: templateEx.itemType,
+          category: templateEx.category || '',
+          targetSets: newTargetSets,
+          targetReps: templateEx.targetReps,
+          targetWeight: templateEx.targetWeight,
+          targetDuration: templateEx.targetDuration || 0,
+          videoLinks: deepCopyVideoLinks(templateEx.videoLinks),
+          order: templateEx.order,
+          completedSets: existing.completedSets || 0,
+          setDetails: existing.setDetails || []
+        }
+      } else {
+        // 新增：创建新的周计划项目
+        return {
+          weekItemId: generateWeekItemId(weekId, templateEx.itemId),
+          sourceItemId: templateEx.itemId,
+          exerciseId: templateEx.exerciseId,
+          exerciseName: templateEx.exerciseName,
+          sourceType: templateEx.sourceType,
+          itemType: templateEx.itemType,
+          category: templateEx.category || '',
+          targetSets: templateEx.targetSets,
+          targetReps: templateEx.targetReps,
+          targetWeight: templateEx.targetWeight,
+          targetDuration: templateEx.targetDuration || 0,
+          videoLinks: deepCopyVideoLinks(templateEx.videoLinks),
+          order: templateEx.order,
+          completedSets: 0,
+          setDetails: []
+        }
+      }
+    })
+
+    // 查找模板中已删除但有打卡记录的动作，需要保留
+    const templateItemIds = new Set((templateDay.exercises || []).map(e => e.itemId))
+    const existingDay = (existingWeek.days || []).find(d => d.dayIndex === dayIndex)
+
+    if (existingDay) {
+      for (const oldEx of existingDay.exercises || []) {
+        if (oldEx.sourceItemId && !templateItemIds.has(oldEx.sourceItemId)) {
+          // 模板中已删除
+          if (oldEx.completedSets > 0 || (oldEx.setDetails && oldEx.setDetails.length > 0)) {
+            // 有打卡记录，保留
+            exercises.push({
+              ...oldEx,
+              order: exercises.length  // 放到最后
+            })
+          }
+          // 无打卡记录，不保留（自动删除）
+        }
+      }
+    }
+
+    return {
+      dayIndex,
+      date: weekDates[dayIndex],
+      exercises
+    }
+  })
+
+  return syncedDays
 }
 
 // 导出所有纯函数
@@ -446,10 +554,13 @@ module.exports = {
   // 视频
   findVideoById,
   validateAddVideo,
-  
+
   // 自定义动作
   createCustomExerciseObject,
-  
+
+  // 当前周同步
+  syncWeekWithTemplate,
+
   // 重新导出错误常量
   TRAINING_ERRORS
 }

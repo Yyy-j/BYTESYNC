@@ -35,9 +35,8 @@ Page({
   },
 
   onShow() {
-    // 从编辑页返回时刷新
-    if (this._needRefresh) {
-      this._needRefresh = false
+    // 每次显示页面时刷新数据，确保同步最新的模板变更
+    if (this.data.state !== 'loading') {
       this._loadData()
     }
   },

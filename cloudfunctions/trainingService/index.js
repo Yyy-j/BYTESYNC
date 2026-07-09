@@ -37,9 +37,13 @@ const handlers = {
   getOrCreateWeek: async (openid, payload) => {
     return domain.getOrCreateWeek(db, openid, payload.weekId)
   },
-  
+
   getWeekHistory: async (openid, payload) => {
     return domain.getWeekHistory(db, openid, payload.limit, payload.offset)
+  },
+
+  syncCurrentWeek: async (openid, payload) => {
+    return domain.syncCurrentWeek(db, openid)
   },
   
   // 打卡相关（使用 weekDocId 和 weekItemId）

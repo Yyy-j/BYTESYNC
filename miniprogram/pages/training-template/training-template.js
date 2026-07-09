@@ -1,10 +1,11 @@
 // pages/training-template/training-template.js — 模板编辑页
 // 编辑每周7天的训练安排
 
-const { 
-  getTrainingTemplate, 
-  createTrainingTemplate, 
-  updateTrainingTemplate 
+const {
+  getTrainingTemplate,
+  createTrainingTemplate,
+  updateTrainingTemplate,
+  syncCurrentTrainingWeek
 } = require('../../utils/training-api')
 
 const app = getApp()
@@ -464,30 +465,38 @@ Page({
    */
   async onSave() {
     if (this.data.state === 'saving') return
-    
+
     this.setData({ state: 'saving' })
 
     try {
       const { days, hasTemplate } = this.data
-      
+
       if (hasTemplate) {
         // 更新模板
         await updateTrainingTemplate(days)
-        wx.showToast({ title: '保存成功', icon: 'success' })
       } else {
         // 创建模板
         await createTrainingTemplate(days)
-        wx.showToast({ title: '创建成功', icon: 'success' })
       }
-      
+
+      // 同步当前周计划
+      try {
+        await syncCurrentTrainingWeek()
+      } catch (syncErr) {
+        console.warn('[training-template] 同步当前周失败', syncErr)
+        // 同步失败不阻塞保存流程
+      }
+
+      wx.showToast({ title: '保存成功', icon: 'success' })
+
       // 清除修改标记
       this.setData({ isDirty: false })
-      
+
       // 延迟返回
       setTimeout(() => {
         wx.navigateBack()
       }, 800)
-      
+
     } catch (err) {
       console.error('[training-template] 保存失败', err)
       wx.showToast({ title: err.message || '保存失败', icon: 'none' })

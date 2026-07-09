@@ -110,6 +110,15 @@ const getTrainingWeekHistory = (options = {}) => {
   return callTrainingService('getWeekHistory', { limit, offset })
 }
 
+/**
+ * 同步当前周计划与模板
+ * 模板保存后调用此接口，将模板变更应用到当前周
+ * @returns {Promise<{ week: Object, synced: boolean }>}
+ */
+const syncCurrentTrainingWeek = () => {
+  return callTrainingService('syncCurrentWeek')
+}
+
 // ═══════════════════════════════════════════════════════════════
 // 打卡相关 API
 // ═══════════════════════════════════════════════════════════════
@@ -273,27 +282,28 @@ const deleteTrainingVideo = (params) => {
 module.exports = {
   // 请求工具
   createTrainingRequestId,
-  
+
   // 模板
   getTrainingTemplate,
   createTrainingTemplate,
   updateTrainingTemplate,
-  
+
   // 周计划
   getTrainingWeek,
   getOrCreateTrainingWeek,
   getTrainingWeekHistory,
-  
+  syncCurrentTrainingWeek,
+
   // 打卡
   incrementExerciseSet,
   updateExerciseSetDetail,
-  
+
   // 自定义动作
   getCustomExercises,
   createCustomExercise,
   updateCustomExercise,
   deleteCustomExercise,
-  
+
   // 视频
   addTrainingVideo,
   updateTrainingVideo,

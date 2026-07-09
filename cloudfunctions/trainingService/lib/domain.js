@@ -874,10 +874,94 @@ async function deleteVideo(db, openid, scopeType, scopeId, videoId) {
       })
     
     return success({ message: '视频已删除' })
-    
+
   } else {
     return fail(TRAINING_ERRORS.INVALID_INPUT)
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 当前周同步
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 同步当前周计划与模板
+ * 模板保存后调用此接口，将模板变更应用到当前周
+ */
+async function syncCurrentWeek(db, openid) {
+  const now = new Date()
+  const currentWeekId = time.getWeekId(now)
+
+  // 1. 获取最新模板
+  const templateResult = await db.collection(COLLECTIONS.TEMPLATES)
+    .where({ openid, status: 'active' })
+    .limit(1)
+    .get()
+
+  if (!templateResult.data || templateResult.data.length === 0) {
+    return fail(TRAINING_ERRORS.TEMPLATE_NOT_FOUND)
+  }
+
+  const template = templateResult.data[0]
+
+  // 2. 获取当前周计划
+  const weekResult = await db.collection(COLLECTIONS.WEEKS)
+    .where({ openid, weekId: currentWeekId })
+    .limit(1)
+    .get()
+
+  if (!weekResult.data || weekResult.data.length === 0) {
+    // 当前周不存在，直接创建
+    const weekSnapshot = logic.buildWeekSnapshot({
+      template,
+      weekId: currentWeekId,
+      now
+    })
+
+    try {
+      await db.collection(COLLECTIONS.WEEKS).add({ data: weekSnapshot })
+    } catch (err) {
+      if (!logic.isDuplicateKeyError(err)) {
+        throw err
+      }
+    }
+
+    // 重新获取
+    const newWeekResult = await db.collection(COLLECTIONS.WEEKS)
+      .where({ openid, weekId: currentWeekId })
+      .limit(1)
+      .get()
+
+    return success({ week: newWeekResult.data[0], synced: true })
+  }
+
+  const existingWeek = weekResult.data[0]
+
+  // 3. 使用纯函数计算同步后的 days
+  const syncedDays = logic.syncWeekWithTemplate({
+    template,
+    existingWeek,
+    weekId: currentWeekId,
+    now
+  })
+
+  // 4. 更新周计划
+  await db.collection(COLLECTIONS.WEEKS)
+    .doc(existingWeek._id)
+    .update({
+      data: {
+        days: syncedDays,
+        templateVersion: template.version,
+        updatedAt: now
+      }
+    })
+
+  // 5. 返回更新后的周计划
+  const updatedWeekResult = await db.collection(COLLECTIONS.WEEKS)
+    .doc(existingWeek._id)
+    .get()
+
+  return success({ week: updatedWeekResult.data, synced: true })
 }
 
 // 导出模块
@@ -885,26 +969,27 @@ module.exports = {
   COLLECTIONS,
   success,
   fail,
-  
+
   // 模板
   getTemplate,
   createTemplate,
   updateTemplate,
-  
+
   // 周计划
   getOrCreateWeek,
   getWeekHistory,
-  
+  syncCurrentWeek,
+
   // 打卡
   incrementSet,
   updateSetDetail,
-  
+
   // 自定义动作
   getCustomExercises,
   createCustomExercise,
   updateCustomExercise,
   deleteCustomExercise,
-  
+
   // 视频
   addVideo,
   updateVideo,
