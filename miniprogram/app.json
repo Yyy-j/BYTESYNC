@@ -2,6 +2,9 @@
   "pages": [
     "pages/record/record",
     "pages/summary/summary",
+    "pages/training/training",
+    "pages/training-template/training-template",
+    "pages/training-exercise/training-exercise",
     "pages/pairing/pairing"
   ],
   "tabBar": {
@@ -19,6 +22,12 @@
       {
         "pagePath": "pages/summary/summary",
         "text": "今日",
+        "iconPath": "assets/icons/summary.png",
+        "selectedIconPath": "assets/icons/summary-active.png"
+      },
+      {
+        "pagePath": "pages/training/training",
+        "text": "训练",
         "iconPath": "assets/icons/summary.png",
         "selectedIconPath": "assets/icons/summary-active.png"
       }

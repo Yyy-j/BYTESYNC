@@ -1,0 +1,58 @@
+<!-- pages/training/training.wxml — 训练首页 -->
+<view class="page">
+  
+  <!-- 页面标题 -->
+  <view class="header">
+    <text class="page-title">训练</text>
+  </view>
+
+  <!-- ══════════════ Loading 状态 ══════════════ -->
+  <view wx:if="{{state === 'loading'}}" class="state-container">
+    <view class="loading-box">
+      <view class="loading-spinner"></view>
+      <text class="loading-text">加载中...</text>
+    </view>
+  </view>
+
+  <!-- ══════════════ 错误状态 ══════════════ -->
+  <view wx:elif="{{state === 'error'}}" class="state-container">
+    <view class="error-box card">
+      <text class="error-icon">⚠️</text>
+      <text class="error-msg">{{errorMsg}}</text>
+      <button class="retry-btn" bind:tap="onRetry">重试</button>
+    </view>
+  </view>
+
+  <!-- ══════════════ 无模板状态 ══════════════ -->
+  <view wx:elif="{{state === 'empty'}}" class="state-container">
+    <view class="empty-box card">
+      <text class="empty-icon">🏋️</text>
+      <text class="empty-title">还没有训练计划</text>
+      <text class="empty-desc">创建一个每周训练模板，开始你的健身之旅</text>
+      <button class="primary-btn create-btn" bind:tap="onEditTemplate">创建训练计划</button>
+    </view>
+  </view>
+
+  <!-- ══════════════ 有模板状态 ══════════════ -->
+  <view wx:elif="{{state === 'loaded'}}" class="content">
+    <view class="template-card card">
+      <view class="template-header">
+        <text class="template-title">我的训练模板</text>
+        <text class="template-version">v{{template.version || 1}}</text>
+      </view>
+      
+      <view class="template-info">
+        <text class="template-desc">点击下方按钮编辑你的每周训练安排</text>
+      </view>
+
+      <button class="primary-btn edit-btn" bind:tap="onEditTemplate">编辑训练计划</button>
+    </view>
+
+    <!-- 提示卡片 -->
+    <view class="tip-card card">
+      <text class="tip-icon">💡</text>
+      <text class="tip-text">模板更改将从下周一开始生效</text>
+    </view>
+  </view>
+
+</view>

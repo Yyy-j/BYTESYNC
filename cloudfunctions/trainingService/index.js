@@ -9,7 +9,7 @@ const { TRAINING_ERRORS } = validation
 
 // 初始化云开发
 cloud.init({
-  env: cloud.DYNAMIC_CURRENT_ENV
+  env: 'cloud1-5gpu3nmc673b62c2'
 })
 
 const db = cloud.database()
