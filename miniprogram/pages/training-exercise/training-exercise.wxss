@@ -264,6 +264,40 @@
   color: var(--color-text-secondary);
 }
 
+/* ── 动作卡片操作区 ── */
+.exercise-main {
+  flex: 1;
+}
+
+.exercise-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1rpx solid var(--color-border);
+}
+
+.action-item {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--color-bg);
+  border-radius: var(--radius-sm);
+}
+
+.action-item.video {
+  color: var(--color-primary);
+}
+
+.action-icon {
+  font-size: var(--font-size-sm);
+}
+
+.action-text {
+  font-size: var(--font-size-xs);
+}
+
 /* ── 弹窗 ── */
 .modal-mask {
   position: fixed;

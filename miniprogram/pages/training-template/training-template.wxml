@@ -158,6 +158,13 @@
               </view>
             </view>
 
+            <!-- 教学视频链接 -->
+            <view class="video-link-row" data-index="{{index}}" bind:tap="onManageVideos">
+              <text class="video-link-label">教学视频</text>
+              <text class="video-link-count">{{item.videoLinks.length || 0}}/3</text>
+              <text class="video-link-arrow">›</text>
+            </view>
+
             <view class="edit-actions">
               <button class="edit-cancel" bind:tap="onCancelEdit">取消</button>
               <button class="edit-save" bind:tap="onSaveEdit">确定</button>

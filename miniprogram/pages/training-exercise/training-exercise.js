@@ -317,6 +317,50 @@ Page({
   },
 
   /**
+   * 管理自定义动作的教学视频
+   */
+  onManageExerciseVideos(e) {
+    const exercise = e.currentTarget.dataset.exercise
+    if (!exercise || !exercise._id) return
+
+    const that = this
+    wx.navigateTo({
+      url: `/pages/training-video/training-video?scopeType=customExercise&scopeId=${exercise._id}`,
+      events: {
+        // 接收视频链接变更
+        videoLinksChanged(data) {
+          that._updateCustomExerciseVideoLinks(exercise._id, data.videoLinks || [])
+        }
+      },
+      success(res) {
+        // 发送当前视频链接
+        res.eventChannel.emit('sendVideoLinks', {
+          videoLinks: exercise.videoLinks || []
+        })
+      }
+    })
+  },
+
+  /**
+   * 更新自定义动作的视频链接
+   */
+  _updateCustomExerciseVideoLinks(exerciseId, videoLinks) {
+    const customExercises = this.data.customExercises.map(ex => {
+      if (ex._id === exerciseId || ex.id === exerciseId) {
+        return { ...ex, videoLinks }
+      }
+      return ex
+    })
+
+    this.setData({ customExercises })
+
+    // 如果当前显示的是自定义动作，更新筛选列表
+    if (this.data.currentTab === 'custom') {
+      this._filterExercises()
+    }
+  },
+
+  /**
    * 重试加载
    */
   onRetry() {

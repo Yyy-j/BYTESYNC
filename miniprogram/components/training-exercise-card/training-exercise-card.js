@@ -111,6 +111,42 @@ Component({
     },
 
     /**
+     * 校验重量（strength 打卡/编辑时）
+     * @returns {Object} { valid, value, error }
+     */
+    _validateWeight(weightValue, isStrength) {
+      // cardio 不需要校验重量
+      if (!isStrength) return { valid: true, value: undefined }
+      // 空值允许（可选）
+      if (weightValue === '' || weightValue === undefined || weightValue === null) {
+        return { valid: true, value: undefined }
+      }
+      const weight = parseFloat(weightValue)
+      if (isNaN(weight) || weight < 0 || weight > 1000) {
+        return { valid: false, error: '重量必须在 0-1000 之间' }
+      }
+      return { valid: true, value: weight }
+    },
+
+    /**
+     * 校验次数（strength 打卡/编辑时）
+     * @returns {Object} { valid, value, error }
+     */
+    _validateReps(repsValue, isStrength) {
+      // cardio 不需要校验次数
+      if (!isStrength) return { valid: true, value: undefined }
+      // 空值允许（可选）
+      if (repsValue === '' || repsValue === undefined || repsValue === null) {
+        return { valid: true, value: undefined }
+      }
+      const reps = parseInt(repsValue, 10)
+      if (isNaN(reps) || reps < 1 || reps > 999 || String(reps) !== String(repsValue).trim()) {
+        return { valid: false, error: '次数必须是 1-999 的整数' }
+      }
+      return { valid: true, value: reps }
+    },
+
+    /**
      * 打卡 +1 组
      */
     async onCheckin() {
@@ -118,10 +154,25 @@ Component({
       if (this.data.isSubmitting || this.data.readonly) return
 
       const { exercise, weekDocId, inputWeight, inputReps, inputRpe, inputRemark } = this.data
+      const isStrength = exercise.itemType !== 'cardio'
 
       // 检查是否已达目标
       if (exercise.completedSets >= exercise.targetSets) {
         wx.showToast({ title: '已完成全部组数', icon: 'none' })
+        return
+      }
+
+      // 校验重量（strength）
+      const weightResult = this._validateWeight(inputWeight, isStrength)
+      if (!weightResult.valid) {
+        wx.showToast({ title: weightResult.error, icon: 'none' })
+        return
+      }
+
+      // 校验次数（strength）
+      const repsResult = this._validateReps(inputReps, isStrength)
+      if (!repsResult.valid) {
+        wx.showToast({ title: repsResult.error, icon: 'none' })
         return
       }
 
@@ -147,13 +198,10 @@ Component({
           requestId
         }
 
-        // 解析输入值
-        const weight = parseFloat(inputWeight)
-        const reps = parseInt(inputReps, 10)
+        // 使用已校验的值
+        if (weightResult.value !== undefined) params.weight = weightResult.value
+        if (repsResult.value !== undefined) params.reps = repsResult.value
         const rpe = parseInt(inputRpe, 10)
-
-        if (!isNaN(weight)) params.weight = weight
-        if (!isNaN(reps)) params.reps = reps
         if (!isNaN(rpe) && rpe >= 1 && rpe <= 10) params.rpe = rpe
         if (inputRemark.trim()) params.remark = inputRemark.trim()
 
@@ -248,6 +296,21 @@ Component({
       const { exercise, weekDocId, editingSetIndex, editWeight, editReps, editRpe, editRemark } = this.data
       const setDetail = exercise.setDetails[editingSetIndex]
       if (!setDetail) return
+      const isStrength = exercise.itemType !== 'cardio'
+
+      // 校验重量（strength）
+      const weightResult = this._validateWeight(editWeight, isStrength)
+      if (!weightResult.valid) {
+        wx.showToast({ title: weightResult.error, icon: 'none' })
+        return
+      }
+
+      // 校验次数（strength）
+      const repsResult = this._validateReps(editReps, isStrength)
+      if (!repsResult.valid) {
+        wx.showToast({ title: repsResult.error, icon: 'none' })
+        return
+      }
 
       // 校验 RPE
       if (!this._validateRpe(editRpe)) {
@@ -270,13 +333,10 @@ Component({
           requestId: setDetail.requestId
         }
 
-        // 解析输入值
-        const weight = parseFloat(editWeight)
-        const reps = parseInt(editReps, 10)
+        // 使用已校验的值
+        if (weightResult.value !== undefined) params.weight = weightResult.value
+        if (repsResult.value !== undefined) params.reps = repsResult.value
         const rpe = parseInt(editRpe, 10)
-
-        if (!isNaN(weight) && weight >= 0 && weight <= 1000) params.weight = weight
-        if (!isNaN(reps) && reps >= 1 && reps <= 999) params.reps = reps
         if (!isNaN(rpe) && rpe >= 1 && rpe <= 10) {
           params.rpe = rpe
         } else if (editRpe === '' || editRpe === undefined) {
@@ -305,6 +365,34 @@ Component({
       } finally {
         this.setData({ isEditing: false })
       }
+    },
+
+    /**
+     * 视频操作（打开/复制链接）
+     */
+    onVideoAction(e) {
+      const video = e.currentTarget.dataset.video
+      if (!video || !video.url) return
+
+      wx.showActionSheet({
+        itemList: ['打开视频', '复制链接'],
+        success: (res) => {
+          if (res.tapIndex === 0) {
+            // 打开视频
+            wx.navigateTo({
+              url: `/pages/training-webview/training-webview?url=${encodeURIComponent(video.url)}&title=${encodeURIComponent(video.title || '教学视频')}`
+            })
+          } else if (res.tapIndex === 1) {
+            // 复制链接
+            wx.setClipboardData({
+              data: video.url,
+              success: () => {
+                wx.showToast({ title: '链接已复制', icon: 'success' })
+              }
+            })
+          }
+        }
+      })
     }
   }
 })

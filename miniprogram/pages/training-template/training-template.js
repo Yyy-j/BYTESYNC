@@ -395,6 +395,53 @@ Page({
   },
 
   /**
+   * 管理教学视频
+   */
+  onManageVideos(e) {
+    const index = e.currentTarget.dataset.index
+    const exercise = this.data.currentExercises[index]
+    if (!exercise) return
+
+    const that = this
+    wx.navigateTo({
+      url: `/pages/training-video/training-video?scopeType=templateItem&scopeId=${exercise.itemId}`,
+      events: {
+        // 接收视频链接变更
+        videoLinksChanged(data) {
+          that._updateExerciseVideoLinks(index, data.videoLinks || [])
+        }
+      },
+      success(res) {
+        // 发送当前视频链接
+        res.eventChannel.emit('sendVideoLinks', {
+          videoLinks: exercise.videoLinks || []
+        })
+      }
+    })
+  },
+
+  /**
+   * 更新动作的视频链接
+   */
+  _updateExerciseVideoLinks(index, videoLinks) {
+    const { currentDay, days } = this.data
+    const exercises = [...days[currentDay].exercises]
+
+    if (!exercises[index]) return
+
+    exercises[index] = { ...exercises[index], videoLinks }
+
+    const newDays = [...days]
+    newDays[currentDay] = { ...newDays[currentDay], exercises }
+
+    this.setData({
+      days: newDays,
+      currentExercises: exercises,
+      isDirty: true
+    })
+  },
+
+  /**
    * 保存模板
    */
   async onSave() {

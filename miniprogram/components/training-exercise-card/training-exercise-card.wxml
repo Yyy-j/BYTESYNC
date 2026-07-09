@@ -91,9 +91,12 @@
       <block wx:if="{{editingSetIndex === index && !readonly}}">
         <view class="edit-form">
           <text class="set-number">第{{index + 1}}组</text>
-          <view class="edit-row">
+          <view class="edit-row" wx:if="{{exercise.itemType !== 'cardio'}}">
             <input class="edit-field" type="digit" placeholder="重量" value="{{editWeight}}" bindinput="onEditWeightInput" />
             <input class="edit-field" type="number" placeholder="次数" value="{{editReps}}" bindinput="onEditRepsInput" />
+            <input class="edit-field" type="number" placeholder="RPE" value="{{editRpe}}" bindinput="onEditRpeInput" />
+          </view>
+          <view class="edit-row" wx:else>
             <input class="edit-field" type="number" placeholder="RPE" value="{{editRpe}}" bindinput="onEditRpeInput" />
           </view>
           <view class="edit-row">
@@ -116,6 +119,19 @@
         <text wx:if="{{item.remark}}" class="set-remark">{{item.remark}}</text>
         <text wx:if="{{!readonly}}" class="edit-btn" data-index="{{index}}" bind:tap="onStartEdit">编辑</text>
       </block>
+    </view>
+  </view>
+
+  <!-- 教学视频链接 -->
+  <view wx:if="{{exercise.videoLinks && exercise.videoLinks.length > 0}}" class="video-links">
+    <view class="video-links-header">
+      <text class="video-links-title">🎬 教学视频</text>
+    </view>
+    <view class="video-link-list">
+      <view wx:for="{{exercise.videoLinks}}" wx:key="videoId" class="video-link-item" data-video="{{item}}" bind:tap="onVideoAction">
+        <text class="video-link-name">{{item.title}}</text>
+        <text class="video-link-arrow">›</text>
+      </view>
     </view>
   </view>
 </view>

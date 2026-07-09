@@ -6,6 +6,8 @@
     "pages/training-template/training-template",
     "pages/training-exercise/training-exercise",
     "pages/training-history/training-history",
+    "pages/training-video/training-video",
+    "pages/training-webview/training-webview",
     "pages/pairing/pairing"
   ],
   "tabBar": {

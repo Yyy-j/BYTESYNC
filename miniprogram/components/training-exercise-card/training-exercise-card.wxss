@@ -224,3 +224,49 @@
   font-weight: 600;
   padding: var(--spacing-xs) var(--spacing-sm);
 }
+
+/* ── 视频链接 ── */
+.video-links {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-sm);
+  border-top: 1rpx solid var(--color-border);
+}
+
+.video-links-header {
+  margin-bottom: var(--spacing-xs);
+}
+
+.video-links-title {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.video-link-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.video-link-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-sm);
+  background: var(--color-primary-light);
+  border-radius: var(--radius-sm);
+}
+
+.video-link-name {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.video-link-arrow {
+  font-size: var(--font-size-lg);
+  color: var(--color-primary);
+  margin-left: var(--spacing-sm);
+}
