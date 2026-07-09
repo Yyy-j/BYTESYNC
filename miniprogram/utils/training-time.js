@@ -1,57 +1,103 @@
 // utils/training-time.js — 训练日期和周次工具
 // 本文件提供训练功能所需的日期计算，遵循 ISO 8601 周定义
 // 周一为一周第一天，周次格式为 YYYY-Www
+// 统一使用 Asia/Tokyo 时区，与云端保持一致
 
 /**
- * 获取本地日期字符串（YYYY-MM-DD）
- * 使用本地时区，避免 UTC 转换导致的日期偏移
+ * 训练业务时区
+ * 所有日期计算均按此时区执行
+ */
+const TRAINING_TIME_ZONE = 'Asia/Tokyo'
+
+/**
+ * 将 Date 对象转换为指定时区的日期组件
+ * @param {Date} date - Date 对象
+ * @returns {Object} { year, month, day, hour, dayOfWeek }
+ */
+const getDateInTimeZone = (date = new Date()) => {
+  // 使用 Intl.DateTimeFormat 获取时区内的日期组件
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: TRAINING_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'short',
+    hour: '2-digit',
+    hour12: false
+  })
+  
+  const parts = formatter.formatToParts(date)
+  const get = (type) => parts.find(p => p.type === type)?.value
+  
+  const weekdayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
+  
+  return {
+    year: parseInt(get('year'), 10),
+    month: parseInt(get('month'), 10),
+    day: parseInt(get('day'), 10),
+    hour: parseInt(get('hour'), 10),
+    dayOfWeek: weekdayMap[get('weekday')] ?? 0
+  }
+}
+
+/**
+ * 获取日期字符串（YYYY-MM-DD）
+ * 按 Asia/Tokyo 时区计算
  * @param {Date} [date] - Date 对象，默认当前时间
  * @returns {string} 格式化的日期字符串
  */
 const formatLocalDate = (date = new Date()) => {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
+  const { year, month, day } = getDateInTimeZone(date)
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
 
 /**
- * 解析日期字符串为 Date 对象（本地时间）
+ * 解析日期字符串为 UTC 时间的 Date 对象
  * @param {string} dateStr - YYYY-MM-DD 格式的日期字符串
- * @returns {Date} Date 对象
+ * @returns {Date} Date 对象（UTC 0点）
  */
 const parseLocalDate = (dateStr) => {
   const [y, m, d] = dateStr.split('-').map(Number)
-  return new Date(y, m - 1, d)
+  return new Date(Date.UTC(y, m - 1, d))
+}
+
+/**
+ * 计算某年有多少个 ISO 周
+ * @param {number} year - 年份
+ * @returns {number} 52 或 53
+ */
+const getISOWeeksInYear = (year) => {
+  const dec28 = new Date(Date.UTC(year, 11, 28))
+  const dayOfWeek = dec28.getUTCDay() || 7
+  dec28.setUTCDate(dec28.getUTCDate() + 4 - dayOfWeek)
+  const yearStart = new Date(Date.UTC(dec28.getUTCFullYear(), 0, 1))
+  const daysDiff = Math.floor((dec28 - yearStart) / (24 * 60 * 60 * 1000))
+  return Math.ceil((daysDiff + 1) / 7)
 }
 
 /**
  * 获取 ISO 周标识
  * 格式：YYYY-Www（如 2026-W28）
  * 遵循 ISO 8601：周一为一周第一天，每年第一周包含该年第一个周四
+ * 按 Asia/Tokyo 时区计算
  * @param {Date} [date] - Date 对象，默认当前时间
  * @returns {string} 周标识字符串
  */
 const getWeekId = (date = new Date()) => {
-  // 复制日期对象，避免修改原对象
-  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const { year, month, day, dayOfWeek } = getDateInTimeZone(date)
   
-  // ISO 周：周一=1, 周日=7
-  // JavaScript getDay()：周日=0, 周一=1, ..., 周六=6
-  const dayOfWeek = target.getDay() || 7  // 将周日的 0 转为 7
+  const target = new Date(Date.UTC(year, month - 1, day))
+  const isoDay = dayOfWeek === 0 ? 7 : dayOfWeek
   
-  // 将日期调整到本周四（ISO 周的参考日）
-  // 周四是一周的中间，用于判断该周属于哪一年
-  target.setDate(target.getDate() + 4 - dayOfWeek)
+  target.setUTCDate(target.getUTCDate() + 4 - isoDay)
   
-  // 获取该周四所在年份的第一天
-  const yearStart = new Date(target.getFullYear(), 0, 1)
+  const isoYear = target.getUTCFullYear()
+  const yearStart = new Date(Date.UTC(isoYear, 0, 1))
   
-  // 计算周四距离年初的天数，然后计算周次
   const daysDiff = Math.floor((target - yearStart) / (24 * 60 * 60 * 1000))
   const weekNum = Math.ceil((daysDiff + 1) / 7)
   
-  return `${target.getFullYear()}-W${String(weekNum).padStart(2, '0')}`
+  return `${isoYear}-W${String(weekNum).padStart(2, '0')}`
 }
 
 /**
@@ -60,7 +106,6 @@ const getWeekId = (date = new Date()) => {
  * @returns {string} 周一日期，格式 YYYY-MM-DD
  */
 const getWeekStartDate = (weekId) => {
-  // 解析周标识
   const match = weekId.match(/^(\d{4})-W(\d{2})$/)
   if (!match) {
     throw new Error('无效的周标识格式，应为 YYYY-Www')
@@ -69,21 +114,19 @@ const getWeekStartDate = (weekId) => {
   const year = parseInt(match[1], 10)
   const week = parseInt(match[2], 10)
   
-  // 找到该年 1 月 4 日（一定在第 1 周）
-  const jan4 = new Date(year, 0, 4)
+  const jan4 = new Date(Date.UTC(year, 0, 4))
+  const jan4Day = jan4.getUTCDay() || 7
   
-  // 获取 1 月 4 日是周几（ISO：周一=1, 周日=7）
-  const jan4Day = jan4.getDay() || 7
-  
-  // 计算第 1 周的周一
   const week1Monday = new Date(jan4)
-  week1Monday.setDate(jan4.getDate() - jan4Day + 1)
+  week1Monday.setUTCDate(jan4.getUTCDate() - jan4Day + 1)
   
-  // 计算目标周的周一
   const targetMonday = new Date(week1Monday)
-  targetMonday.setDate(week1Monday.getDate() + (week - 1) * 7)
+  targetMonday.setUTCDate(week1Monday.getUTCDate() + (week - 1) * 7)
   
-  return formatLocalDate(targetMonday)
+  const y = targetMonday.getUTCFullYear()
+  const m = String(targetMonday.getUTCMonth() + 1).padStart(2, '0')
+  const d = String(targetMonday.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 /**
@@ -93,10 +136,15 @@ const getWeekStartDate = (weekId) => {
  */
 const getWeekEndDate = (weekId) => {
   const mondayStr = getWeekStartDate(weekId)
-  const monday = parseLocalDate(mondayStr)
+  const [y, m, d] = mondayStr.split('-').map(Number)
+  const monday = new Date(Date.UTC(y, m - 1, d))
   const sunday = new Date(monday)
-  sunday.setDate(monday.getDate() + 6)
-  return formatLocalDate(sunday)
+  sunday.setUTCDate(monday.getUTCDate() + 6)
+  
+  const sy = sunday.getUTCFullYear()
+  const sm = String(sunday.getUTCMonth() + 1).padStart(2, '0')
+  const sd = String(sunday.getUTCDate()).padStart(2, '0')
+  return `${sy}-${sm}-${sd}`
 }
 
 /**
@@ -106,13 +154,17 @@ const getWeekEndDate = (weekId) => {
  */
 const getWeekDates = (weekId) => {
   const mondayStr = getWeekStartDate(weekId)
-  const monday = parseLocalDate(mondayStr)
+  const [y, m, d] = mondayStr.split('-').map(Number)
+  const monday = new Date(Date.UTC(y, m - 1, d))
   
   const dates = []
   for (let i = 0; i < 7; i++) {
     const day = new Date(monday)
-    day.setDate(monday.getDate() + i)
-    dates.push(formatLocalDate(day))
+    day.setUTCDate(monday.getUTCDate() + i)
+    const dy = day.getUTCFullYear()
+    const dm = String(day.getUTCMonth() + 1).padStart(2, '0')
+    const dd = String(day.getUTCDate()).padStart(2, '0')
+    dates.push(`${dy}-${dm}-${dd}`)
   }
   
   return dates
@@ -124,18 +176,18 @@ const getWeekDates = (weekId) => {
  * @returns {string} 下周一日期，格式 YYYY-MM-DD
  */
 const getNextWeekStart = (date = new Date()) => {
-  const current = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const { year, month, day, dayOfWeek } = getDateInTimeZone(date)
+  const isoDay = dayOfWeek === 0 ? 7 : dayOfWeek
+  const daysUntilNextMonday = 8 - isoDay
   
-  // 计算当前是周几（ISO：周一=1, 周日=7）
-  const dayOfWeek = current.getDay() || 7
-  
-  // 计算到下周一的天数
-  const daysUntilNextMonday = 8 - dayOfWeek
-  
+  const current = new Date(Date.UTC(year, month - 1, day))
   const nextMonday = new Date(current)
-  nextMonday.setDate(current.getDate() + daysUntilNextMonday)
+  nextMonday.setUTCDate(current.getUTCDate() + daysUntilNextMonday)
   
-  return formatLocalDate(nextMonday)
+  const ny = nextMonday.getUTCFullYear()
+  const nm = String(nextMonday.getUTCMonth() + 1).padStart(2, '0')
+  const nd = String(nextMonday.getUTCDate()).padStart(2, '0')
+  return `${ny}-${nm}-${nd}`
 }
 
 /**
@@ -145,11 +197,59 @@ const getNextWeekStart = (date = new Date()) => {
  * @returns {number} 0-6 的索引
  */
 const getDayIndex = (date) => {
-  const d = typeof date === 'string' ? parseLocalDate(date) : date
-  const dayOfWeek = d.getDay()
-  // JavaScript: 周日=0, 周一=1, ..., 周六=6
-  // 需要转换为: 周一=0, 周二=1, ..., 周日=6
+  if (typeof date === 'string') {
+    const [y, m, d] = date.split('-').map(Number)
+    const utcDate = new Date(Date.UTC(y, m - 1, d))
+    const dayOfWeek = utcDate.getUTCDay()
+    return dayOfWeek === 0 ? 6 : dayOfWeek - 1
+  }
+  const { dayOfWeek } = getDateInTimeZone(date)
   return dayOfWeek === 0 ? 6 : dayOfWeek - 1
+}
+
+/**
+ * 验证周标识格式是否正确且该周实际存在
+ * @param {string} weekId - 周标识
+ * @returns {boolean} 是否为有效的周标识
+ */
+const isValidWeekId = (weekId) => {
+  if (!weekId || typeof weekId !== 'string') {
+    return false
+  }
+  const match = weekId.match(/^(\d{4})-W(\d{2})$/)
+  if (!match) {
+    return false
+  }
+  const year = parseInt(match[1], 10)
+  const week = parseInt(match[2], 10)
+  
+  if (week < 1 || week > 53) {
+    return false
+  }
+  
+  if (week === 53) {
+    const maxWeeks = getISOWeeksInYear(year)
+    if (maxWeeks < 53) {
+      return false
+    }
+  }
+  
+  return true
+}
+
+module.exports = {
+  TRAINING_TIME_ZONE,
+  getDateInTimeZone,
+  formatLocalDate,
+  parseLocalDate,
+  getISOWeeksInYear,
+  getWeekId,
+  getWeekStartDate,
+  getWeekEndDate,
+  getWeekDates,
+  getNextWeekStart,
+  getDayIndex,
+  isValidWeekId
 }
 
 /**

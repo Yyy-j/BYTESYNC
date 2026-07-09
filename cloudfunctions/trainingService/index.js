@@ -20,125 +20,126 @@ const db = cloud.database()
 
 const handlers = {
   // 模板相关
-  getTemplate: async (openid, data) => {
+  getTemplate: async (openid, payload) => {
     return domain.getTemplate(db, openid)
   },
   
-  createTemplate: async (openid, data) => {
-    return domain.createTemplate(db, openid, data.days)
+  createTemplate: async (openid, payload) => {
+    return domain.createTemplate(db, openid, payload.days)
   },
   
-  updateTemplate: async (openid, data) => {
-    return domain.updateTemplate(db, openid, data.days)
+  updateTemplate: async (openid, payload) => {
+    return domain.updateTemplate(db, openid, payload.days)
   },
   
   // 周计划相关
-  getOrCreateWeek: async (openid, data) => {
-    return domain.getOrCreateWeek(db, openid, data.weekId)
+  getOrCreateWeek: async (openid, payload) => {
+    return domain.getOrCreateWeek(db, openid, payload.weekId)
   },
   
-  getWeekHistory: async (openid, data) => {
-    return domain.getWeekHistory(db, openid, data.limit, data.offset)
+  getWeekHistory: async (openid, payload) => {
+    return domain.getWeekHistory(db, openid, payload.limit, payload.offset)
   },
   
-  // 打卡相关
-  incrementSet: async (openid, data) => {
+  // 打卡相关（使用 weekDocId 和 weekItemId）
+  incrementSet: async (openid, payload) => {
     return domain.incrementSet(
       db, 
       openid, 
-      data.weekId, 
-      data.dayIndex, 
-      data.itemId, 
+      payload.weekDocId, 
+      payload.weekItemId, 
       {
-        requestId: data.requestId,
-        weight: data.weight,
-        reps: data.reps,
-        rpe: data.rpe,
-        remark: data.remark
+        requestId: payload.requestId,
+        weight: payload.weight,
+        reps: payload.reps,
+        rpe: payload.rpe,
+        remark: payload.remark
       }
     )
   },
   
-  updateSetDetail: async (openid, data) => {
+  updateSetDetail: async (openid, payload) => {
     return domain.updateSetDetail(
       db,
       openid,
-      data.weekId,
-      data.dayIndex,
-      data.itemId,
-      data.setNumber,
+      payload.weekDocId,
+      payload.weekItemId,
+      payload.requestId,
       {
-        weight: data.weight,
-        reps: data.reps,
-        rpe: data.rpe,
-        remark: data.remark
+        weight: payload.weight,
+        reps: payload.reps,
+        rpe: payload.rpe,
+        remark: payload.remark
       }
     )
   },
   
   // 自定义动作相关
-  getCustomExercises: async (openid, data) => {
+  getCustomExercises: async (openid, payload) => {
     return domain.getCustomExercises(db, openid)
   },
   
-  createCustomExercise: async (openid, data) => {
+  createCustomExercise: async (openid, payload) => {
     return domain.createCustomExercise(db, openid, {
-      name: data.name,
-      itemType: data.itemType,
-      defaultSets: data.defaultSets,
-      defaultReps: data.defaultReps,
-      defaultWeight: data.defaultWeight,
-      videoLinks: data.videoLinks
+      name: payload.name,
+      englishName: payload.englishName,
+      category: payload.category,
+      itemType: payload.itemType,
+      defaultSets: payload.defaultSets,
+      defaultReps: payload.defaultReps,
+      defaultWeight: payload.defaultWeight,
+      defaultDuration: payload.defaultDuration,
+      videoLinks: payload.videoLinks
     })
   },
   
-  updateCustomExercise: async (openid, data) => {
-    return domain.updateCustomExercise(db, openid, data.exerciseId, {
-      name: data.name,
-      itemType: data.itemType,
-      defaultSets: data.defaultSets,
-      defaultReps: data.defaultReps,
-      defaultWeight: data.defaultWeight,
-      videoLinks: data.videoLinks
+  updateCustomExercise: async (openid, payload) => {
+    return domain.updateCustomExercise(db, openid, payload.exerciseId, {
+      name: payload.name,
+      englishName: payload.englishName,
+      category: payload.category,
+      itemType: payload.itemType,
+      defaultSets: payload.defaultSets,
+      defaultReps: payload.defaultReps,
+      defaultWeight: payload.defaultWeight,
+      defaultDuration: payload.defaultDuration,
+      videoLinks: payload.videoLinks
     })
   },
   
-  deleteCustomExercise: async (openid, data) => {
-    return domain.deleteCustomExercise(db, openid, data.exerciseId)
+  deleteCustomExercise: async (openid, payload) => {
+    return domain.deleteCustomExercise(db, openid, payload.exerciseId)
   },
   
-  // 视频相关
-  addVideo: async (openid, data) => {
+  // 视频相关（使用 scopeType）
+  addVideo: async (openid, payload) => {
     return domain.addVideo(
       db,
       openid,
-      data.weekId,
-      data.dayIndex,
-      data.itemId,
-      { title: data.title, url: data.url }
+      payload.scopeType,
+      payload.scopeId,
+      { title: payload.title, url: payload.url }
     )
   },
   
-  updateVideo: async (openid, data) => {
+  updateVideo: async (openid, payload) => {
     return domain.updateVideo(
       db,
       openid,
-      data.weekId,
-      data.dayIndex,
-      data.itemId,
-      data.videoIndex,
-      { title: data.title, url: data.url }
+      payload.scopeType,
+      payload.scopeId,
+      payload.videoId,
+      { title: payload.title, url: payload.url }
     )
   },
   
-  deleteVideo: async (openid, data) => {
+  deleteVideo: async (openid, payload) => {
     return domain.deleteVideo(
       db,
       openid,
-      data.weekId,
-      data.dayIndex,
-      data.itemId,
-      data.videoIndex
+      payload.scopeType,
+      payload.scopeId,
+      payload.videoId
     )
   }
 }
@@ -158,7 +159,9 @@ exports.main = async (event, context) => {
     }
   }
   
-  const { action, ...data } = event
+  // 读取 action 和 payload
+  const action = event && event.action
+  const payload = (event && event.payload) || {}
   
   // 检查 action 是否存在
   if (!action || typeof action !== 'string') {
@@ -183,15 +186,18 @@ exports.main = async (event, context) => {
   
   try {
     // 执行处理器
-    const result = await handler(OPENID, data)
+    const result = await handler(OPENID, payload)
     return result
   } catch (err) {
+    // 在云函数日志中记录错误
     console.error(`[trainingService] ${action} error:`, err)
+    
+    // 返回客户端时只返回固定信息，禁止泄露内部异常
     return {
       success: false,
       error: {
         code: 'TRAINING_INTERNAL_ERROR',
-        message: err.message || '服务器内部错误'
+        message: '服务器内部错误'
       }
     }
   }

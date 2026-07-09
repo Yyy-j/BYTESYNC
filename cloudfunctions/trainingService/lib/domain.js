@@ -3,6 +3,7 @@
 
 const time = require('./time')
 const validation = require('./validation')
+const logic = require('./domain-logic')
 
 const { TRAINING_ERRORS } = validation
 
@@ -22,7 +23,7 @@ const COLLECTIONS = {
 
 const success = (data = {}) => ({
   success: true,
-  ...data
+  data
 })
 
 const fail = (error) => ({
@@ -35,13 +36,11 @@ const fail = (error) => ({
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * 获取用户训练模板
- * @param {Object} db - 数据库实例
- * @param {string} openid - 用户标识
+ * 获取用户活跃训练模板
  */
 async function getTemplate(db, openid) {
   const result = await db.collection(COLLECTIONS.TEMPLATES)
-    .where({ openid })
+    .where({ openid, status: 'active' })
     .limit(1)
     .get()
   
@@ -55,9 +54,6 @@ async function getTemplate(db, openid) {
 /**
  * 创建用户训练模板
  * 首次创建模板时，同时创建当前周的周计划
- * @param {Object} db - 数据库实例
- * @param {string} openid - 用户标识
- * @param {Array} days - 7天的训练安排
  */
 async function createTemplate(db, openid, days) {
   // 校验模板数据
@@ -66,9 +62,9 @@ async function createTemplate(db, openid, days) {
     return fail(validationResult.error)
   }
   
-  // 检查是否已有模板
+  // 检查是否已有活跃模板
   const existingResult = await db.collection(COLLECTIONS.TEMPLATES)
-    .where({ openid })
+    .where({ openid, status: 'active' })
     .count()
   
   if (existingResult.total > 0) {
@@ -76,32 +72,42 @@ async function createTemplate(db, openid, days) {
   }
   
   const now = new Date()
-  const template = {
-    openid,
-    days,
-    version: 1,
-    createdAt: now,
-    updatedAt: now
-  }
+  // 使用纯函数创建标准化的模板对象
+  const template = logic.createTemplateObject({ openid, days, now })
   
   const addResult = await db.collection(COLLECTIONS.TEMPLATES).add({ data: template })
+  const templateId = addResult._id
   
   // 首次创建模板时，立即创建当前周的周计划
   const currentWeekId = time.getWeekId(now)
-  await createWeekFromTemplate(db, openid, currentWeekId, days)
+  
+  // 构建周计划快照
+  const templateWithId = { ...template, _id: templateId }
+  const weekSnapshot = logic.buildWeekSnapshot({
+    template: templateWithId,
+    weekId: currentWeekId,
+    now
+  })
+  
+  try {
+    await db.collection(COLLECTIONS.WEEKS).add({ data: weekSnapshot })
+  } catch (err) {
+    if (!logic.isDuplicateKeyError(err)) {
+      throw err
+    }
+    // 重复键错误忽略（周计划已存在）
+  }
   
   return success({
-    templateId: addResult._id,
-    weekId: currentWeekId
+    templateId,
+    weekId: currentWeekId,
+    version: 1
   })
 }
 
 /**
  * 更新用户训练模板
  * 模板更改从下周一生效
- * @param {Object} db - 数据库实例
- * @param {string} openid - 用户标识
- * @param {Array} days - 新的7天训练安排
  */
 async function updateTemplate(db, openid, days) {
   // 校验模板数据
@@ -111,24 +117,34 @@ async function updateTemplate(db, openid, days) {
   }
   
   const now = new Date()
+  const normalizedDays = logic.normalizeTemplateDays(days, now)
   
-  // 更新模板，version +1
-  const updateResult = await db.collection(COLLECTIONS.TEMPLATES)
-    .where({ openid })
+  // 使用事务原子更新 version
+  const result = await db.collection(COLLECTIONS.TEMPLATES)
+    .where({ openid, status: 'active' })
     .update({
       data: {
-        days,
+        days: normalizedDays,
         updatedAt: now,
         version: db.command.inc(1)
       }
     })
   
-  if (updateResult.stats.updated === 0) {
+  if (result.stats.updated === 0) {
     return fail(TRAINING_ERRORS.TEMPLATE_NOT_FOUND)
   }
   
+  // 获取更新后的版本号
+  const updated = await db.collection(COLLECTIONS.TEMPLATES)
+    .where({ openid, status: 'active' })
+    .field({ version: true })
+    .get()
+  
+  const newVersion = updated.data?.[0]?.version || 1
+  
   return success({
-    message: '模板已更新，将于下周一生效'
+    message: '模板已更新，将于下周一生效',
+    version: newVersion
   })
 }
 
@@ -137,61 +153,19 @@ async function updateTemplate(db, openid, days) {
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * 从模板创建周计划（内部方法）
- * @param {Object} db - 数据库实例
- * @param {string} openid - 用户标识
- * @param {string} weekId - 周标识
- * @param {Array} templateDays - 模板天数据
- */
-async function createWeekFromTemplate(db, openid, weekId, templateDays) {
-  // 深拷贝模板数据，为每个项目添加完成计数
-  const days = templateDays.map(day => ({
-    dayIndex: day.dayIndex,
-    date: time.getWeekDates(weekId)[day.dayIndex],
-    exercises: day.exercises.map(exercise => ({
-      ...exercise,
-      completedSets: 0,
-      setDetails: []
-    }))
-  }))
-  
-  const now = new Date()
-  const weekPlan = {
-    openid,
-    weekId,
-    startDate: time.getWeekStartDate(weekId),
-    endDate: time.getWeekEndDate(weekId),
-    days,
-    createdAt: now,
-    updatedAt: now
-  }
-  
-  try {
-    await db.collection(COLLECTIONS.WEEKS).add({ data: weekPlan })
-    return success({ weekId })
-  } catch (err) {
-    // 可能是重复创建（唯一索引冲突）
-    console.log('createWeekFromTemplate error:', err)
-    return success({ weekId })
-  }
-}
-
-/**
  * 获取或创建周计划
- * @param {Object} db - 数据库实例
- * @param {string} openid - 用户标识
- * @param {string} weekId - 周标识（可选，默认当前周）
+ * 实现幂等创建，只吞重复键错误
  */
 async function getOrCreateWeek(db, openid, weekId) {
   // 默认当前周
   const targetWeekId = weekId || time.getWeekId(new Date())
   
-  // 验证周标识格式
+  // 验证周标识格式和有效性
   if (!time.isValidWeekId(targetWeekId)) {
     return fail(TRAINING_ERRORS.WEEK_ID_INVALID)
   }
   
-  // 尝试获取已有的周计划
+  // 1. 尝试获取已有的周计划
   const existingResult = await db.collection(COLLECTIONS.WEEKS)
     .where({ openid, weekId: targetWeekId })
     .limit(1)
@@ -201,16 +175,38 @@ async function getOrCreateWeek(db, openid, weekId) {
     return success({ week: existingResult.data[0] })
   }
   
-  // 没有周计划，需要从模板创建
-  const templateResult = await getTemplate(db, openid)
-  if (!templateResult.template) {
+  // 2. 没有周计划，需要从模板创建
+  const templateResult = await db.collection(COLLECTIONS.TEMPLATES)
+    .where({ openid, status: 'active' })
+    .limit(1)
+    .get()
+  
+  if (!templateResult.data || templateResult.data.length === 0) {
     return fail(TRAINING_ERRORS.TEMPLATE_NOT_FOUND)
   }
   
-  // 从模板创建周计划
-  await createWeekFromTemplate(db, openid, targetWeekId, templateResult.template.days)
+  const template = templateResult.data[0]
+  const now = new Date()
   
-  // 重新获取创建的周计划
+  // 3. 使用纯函数构建周计划快照
+  const weekSnapshot = logic.buildWeekSnapshot({
+    template,
+    weekId: targetWeekId,
+    now
+  })
+  
+  // 4. 尝试创建
+  try {
+    await db.collection(COLLECTIONS.WEEKS).add({ data: weekSnapshot })
+  } catch (err) {
+    // 5. 只处理重复键错误
+    if (!logic.isDuplicateKeyError(err)) {
+      throw err  // 其他错误继续抛出
+    }
+    // 重复键错误：重新查询并返回
+  }
+  
+  // 6. 重新获取周计划
   const newResult = await db.collection(COLLECTIONS.WEEKS)
     .where({ openid, weekId: targetWeekId })
     .limit(1)
@@ -225,10 +221,6 @@ async function getOrCreateWeek(db, openid, weekId) {
 
 /**
  * 获取周计划历史列表
- * @param {Object} db - 数据库实例
- * @param {string} openid - 用户标识
- * @param {number} limit - 返回数量限制
- * @param {number} offset - 偏移量
  */
 async function getWeekHistory(db, openid, limit = 10, offset = 0) {
   const result = await db.collection(COLLECTIONS.WEEKS)
@@ -245,20 +237,20 @@ async function getWeekHistory(db, openid, limit = 10, offset = 0) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 打卡相关业务
+// 打卡相关业务（事务实现）
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * 打卡：增加一组
+ * 打卡：增加一组（事务实现）
  * 使用 requestId 实现幂等性
+ * 
  * @param {Object} db - 数据库实例
  * @param {string} openid - 用户标识
- * @param {string} weekId - 周标识
- * @param {number} dayIndex - 天索引 0-6
- * @param {string} itemId - 项目ID
+ * @param {string} weekDocId - 周计划文档 ID
+ * @param {string} weekItemId - 项目标识
  * @param {Object} checkinData - 打卡数据
  */
-async function incrementSet(db, openid, weekId, dayIndex, itemId, checkinData) {
+async function incrementSet(db, openid, weekDocId, weekItemId, checkinData) {
   // 校验打卡输入
   const validationResult = validation.validateCheckinInput(checkinData)
   if (!validationResult.valid) {
@@ -267,86 +259,102 @@ async function incrementSet(db, openid, weekId, dayIndex, itemId, checkinData) {
   
   const { requestId, weight, reps, rpe, remark } = checkinData
   
-  // 获取周计划
-  const weekResult = await db.collection(COLLECTIONS.WEEKS)
-    .where({ openid, weekId })
-    .limit(1)
-    .get()
+  // 使用事务保证原子性
+  const transaction = await db.startTransaction()
   
-  if (!weekResult.data || weekResult.data.length === 0) {
-    return fail(TRAINING_ERRORS.WEEK_NOT_FOUND)
-  }
-  
-  const week = weekResult.data[0]
-  
-  // 找到对应的天和项目
-  const day = week.days.find(d => d.dayIndex === dayIndex)
-  if (!day) {
-    return fail(TRAINING_ERRORS.WEEK_ITEM_NOT_FOUND)
-  }
-  
-  const exercise = day.exercises.find(e => e.itemId === itemId)
-  if (!exercise) {
-    return fail(TRAINING_ERRORS.WEEK_ITEM_NOT_FOUND)
-  }
-  
-  // 检查是否已达到目标组数
-  if (exercise.completedSets >= exercise.targetSets) {
-    return fail(TRAINING_ERRORS.TARGET_REACHED)
-  }
-  
-  // 检查幂等性：是否已有相同 requestId 的记录
-  const existingDetail = exercise.setDetails.find(d => d.requestId === requestId)
-  if (existingDetail) {
-    // 幂等返回：已处理过的请求
+  try {
+    // 1. 读取周计划
+    const weekDoc = await transaction.collection(COLLECTIONS.WEEKS)
+      .doc(weekDocId)
+      .get()
+    
+    if (!weekDoc.data) {
+      await transaction.rollback()
+      return fail(TRAINING_ERRORS.WEEK_NOT_FOUND)
+    }
+    
+    const week = weekDoc.data
+    
+    // 2. 验证所有权
+    if (week.openid !== openid) {
+      await transaction.rollback()
+      return fail(TRAINING_ERRORS.UNAUTHORIZED)
+    }
+    
+    // 3. 查找项目
+    const itemLocation = logic.findWeekItem(week, weekItemId)
+    if (!itemLocation) {
+      await transaction.rollback()
+      return fail(TRAINING_ERRORS.WEEK_ITEM_NOT_FOUND)
+    }
+    
+    const { dayIndex, exerciseIndex, exercise } = itemLocation
+    
+    // 4. 验证打卡（幂等检查在目标上限检查之前）
+    const validation = logic.validateIncrementSet(exercise, requestId)
+    
+    if (validation.duplicate) {
+      await transaction.rollback()
+      return success({
+        duplicate: true,
+        completedSets: exercise.completedSets,
+        targetSets: exercise.targetSets,
+        setDetail: validation.existingDetail
+      })
+    }
+    
+    if (validation.error) {
+      await transaction.rollback()
+      return fail(validation.error)
+    }
+    
+    // 5. 创建新的组记录
+    const now = new Date()
+    const setDetail = logic.createSetDetail({
+      requestId,
+      setIndex: exercise.completedSets + 1,
+      weight,
+      reps,
+      rpe,
+      remark,
+      targetReps: exercise.targetReps,
+      now
+    })
+    
+    // 6. 更新数据
+    const updatePath = `days.${dayIndex}.exercises.${exerciseIndex}`
+    
+    await transaction.collection(COLLECTIONS.WEEKS)
+      .doc(weekDocId)
+      .update({
+        data: {
+          [`${updatePath}.setDetails`]: db.command.push(setDetail),
+          [`${updatePath}.completedSets`]: exercise.completedSets + 1,
+          updatedAt: now
+        }
+      })
+    
+    // 7. 提交事务
+    await transaction.commit()
+    
     return success({
-      completedSets: exercise.completedSets,
-      message: '该组已记录（幂等返回）'
+      duplicate: false,
+      completedSets: exercise.completedSets + 1,
+      targetSets: exercise.targetSets,
+      setDetail
     })
+    
+  } catch (err) {
+    await transaction.rollback()
+    throw err
   }
-  
-  // 构建新的组详情
-  const setDetail = {
-    requestId,
-    setNumber: exercise.completedSets + 1,
-    weight: weight !== undefined && weight !== null ? Number(weight) : null,
-    reps: reps !== undefined && reps !== null ? Number(reps) : null,
-    rpe: rpe !== undefined && rpe !== null ? Number(rpe) : null,
-    remark: remark || null,
-    completedAt: new Date()
-  }
-  
-  // 使用数据库命令更新
-  const dayKey = `days.${week.days.indexOf(day)}`
-  const exerciseKey = `${dayKey}.exercises.${day.exercises.indexOf(exercise)}`
-  
-  await db.collection(COLLECTIONS.WEEKS)
-    .doc(week._id)
-    .update({
-      data: {
-        [`${exerciseKey}.completedSets`]: db.command.inc(1),
-        [`${exerciseKey}.setDetails`]: db.command.push(setDetail),
-        updatedAt: new Date()
-      }
-    })
-  
-  return success({
-    completedSets: exercise.completedSets + 1,
-    targetSets: exercise.targetSets
-  })
 }
 
 /**
  * 更新已完成组的详情
- * @param {Object} db - 数据库实例
- * @param {string} openid - 用户标识
- * @param {string} weekId - 周标识
- * @param {number} dayIndex - 天索引
- * @param {string} itemId - 项目ID
- * @param {number} setNumber - 组号
- * @param {Object} updateData - 更新数据
+ * 通过 requestId 定位组记录
  */
-async function updateSetDetail(db, openid, weekId, dayIndex, itemId, setNumber, updateData) {
+async function updateSetDetail(db, openid, weekDocId, weekItemId, requestId, updateData) {
   // 校验更新数据
   if (updateData.weight !== undefined) {
     const weightResult = validation.validateNumber(updateData.weight, {
@@ -369,9 +377,10 @@ async function updateSetDetail(db, openid, weekId, dayIndex, itemId, setNumber, 
     }
   }
   
-  if (updateData.rpe !== undefined) {
+  if (updateData.rpe !== undefined && updateData.rpe !== null) {
     const rpeResult = validation.validateInteger(updateData.rpe, {
       min: 1, max: 10,
+      required: false,
       error: TRAINING_ERRORS.RPE_INVALID
     })
     if (!rpeResult.valid) {
@@ -380,36 +389,39 @@ async function updateSetDetail(db, openid, weekId, dayIndex, itemId, setNumber, 
   }
   
   // 获取周计划
-  const weekResult = await db.collection(COLLECTIONS.WEEKS)
-    .where({ openid, weekId })
-    .limit(1)
+  const weekDoc = await db.collection(COLLECTIONS.WEEKS)
+    .doc(weekDocId)
     .get()
   
-  if (!weekResult.data || weekResult.data.length === 0) {
+  if (!weekDoc.data) {
     return fail(TRAINING_ERRORS.WEEK_NOT_FOUND)
   }
   
-  const week = weekResult.data[0]
-  const dayIdx = week.days.findIndex(d => d.dayIndex === dayIndex)
-  if (dayIdx === -1) {
+  const week = weekDoc.data
+  
+  // 验证所有权
+  if (week.openid !== openid) {
+    return fail(TRAINING_ERRORS.UNAUTHORIZED)
+  }
+  
+  // 查找项目
+  const itemLocation = logic.findWeekItem(week, weekItemId)
+  if (!itemLocation) {
     return fail(TRAINING_ERRORS.WEEK_ITEM_NOT_FOUND)
   }
   
-  const exerciseIdx = week.days[dayIdx].exercises.findIndex(e => e.itemId === itemId)
-  if (exerciseIdx === -1) {
-    return fail(TRAINING_ERRORS.WEEK_ITEM_NOT_FOUND)
-  }
+  const { dayIndex, exerciseIndex, exercise } = itemLocation
   
-  const setIdx = week.days[dayIdx].exercises[exerciseIdx].setDetails.findIndex(
-    s => s.setNumber === setNumber
-  )
+  // 通过 requestId 查找组记录
+  const setIdx = exercise.setDetails.findIndex(s => s.requestId === requestId)
   if (setIdx === -1) {
     return fail(TRAINING_ERRORS.WEEK_ITEM_NOT_FOUND)
   }
   
-  // 构建更新对象
-  const updateObj = { updatedAt: new Date() }
-  const basePath = `days.${dayIdx}.exercises.${exerciseIdx}.setDetails.${setIdx}`
+  // 构建更新对象（不允许修改 completedAt 和 setIndex）
+  const now = new Date()
+  const updateObj = { updatedAt: now }
+  const basePath = `days.${dayIndex}.exercises.${exerciseIndex}.setDetails.${setIdx}`
   
   if (updateData.weight !== undefined) {
     updateObj[`${basePath}.weight`] = updateData.weight
@@ -425,22 +437,25 @@ async function updateSetDetail(db, openid, weekId, dayIndex, itemId, setNumber, 
   }
   
   await db.collection(COLLECTIONS.WEEKS)
-    .doc(week._id)
+    .doc(weekDocId)
     .update({ data: updateObj })
   
   return success({ message: '已更新' })
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 自定义动作相关业务
+// 自定义动作相关业务（软删除）
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * 获取用户自定义动作列表
+ * 获取用户自定义动作列表（排除已删除）
  */
 async function getCustomExercises(db, openid) {
   const result = await db.collection(COLLECTIONS.EXERCISES)
-    .where({ openid })
+    .where({
+      openid,
+      isDeleted: db.command.neq(true)
+    })
     .orderBy('createdAt', 'desc')
     .get()
   
@@ -457,17 +472,7 @@ async function createCustomExercise(db, openid, exerciseData) {
   }
   
   const now = new Date()
-  const exercise = {
-    openid,
-    name: exerciseData.name.trim(),
-    itemType: exerciseData.itemType || 'strength',
-    defaultSets: exerciseData.defaultSets || 4,
-    defaultReps: exerciseData.defaultReps || 12,
-    defaultWeight: exerciseData.defaultWeight || 0,
-    videoLinks: exerciseData.videoLinks || [],
-    createdAt: now,
-    updatedAt: now
-  }
+  const exercise = logic.createCustomExerciseObject({ openid, exerciseData, now })
   
   const addResult = await db.collection(COLLECTIONS.EXERCISES).add({ data: exercise })
   
@@ -478,17 +483,31 @@ async function createCustomExercise(db, openid, exerciseData) {
  * 更新自定义动作
  */
 async function updateCustomExercise(db, openid, exerciseId, exerciseData) {
+  // 验证动作存在且属于当前用户且未删除
+  const existing = await db.collection(COLLECTIONS.EXERCISES)
+    .where({ _id: exerciseId, openid, isDeleted: db.command.neq(true) })
+    .get()
+  
+  if (!existing.data || existing.data.length === 0) {
+    return fail(TRAINING_ERRORS.CUSTOM_EXERCISE_NOT_FOUND)
+  }
+  
   const validationResult = validation.validateCustomExerciseInput(exerciseData)
   if (!validationResult.valid) {
     return fail(validationResult.error)
   }
   
-  const updateData = {
-    updatedAt: new Date()
-  }
+  const now = new Date()
+  const updateData = { updatedAt: now }
   
   if (exerciseData.name !== undefined) {
-    updateData.name = exerciseData.name.trim()
+    updateData.name = String(exerciseData.name).trim()
+  }
+  if (exerciseData.englishName !== undefined) {
+    updateData.englishName = String(exerciseData.englishName).trim()
+  }
+  if (exerciseData.category !== undefined) {
+    updateData.category = String(exerciseData.category).trim()
   }
   if (exerciseData.itemType !== undefined) {
     updateData.itemType = exerciseData.itemType
@@ -502,30 +521,34 @@ async function updateCustomExercise(db, openid, exerciseId, exerciseData) {
   if (exerciseData.defaultWeight !== undefined) {
     updateData.defaultWeight = exerciseData.defaultWeight
   }
+  if (exerciseData.defaultDuration !== undefined) {
+    updateData.defaultDuration = exerciseData.defaultDuration
+  }
   if (exerciseData.videoLinks !== undefined) {
-    updateData.videoLinks = exerciseData.videoLinks
+    updateData.videoLinks = logic.normalizeVideoLinks(exerciseData.videoLinks, now)
   }
   
-  const updateResult = await db.collection(COLLECTIONS.EXERCISES)
-    .where({ _id: exerciseId, openid })
+  await db.collection(COLLECTIONS.EXERCISES)
+    .doc(exerciseId)
     .update({ data: updateData })
-  
-  if (updateResult.stats.updated === 0) {
-    return fail(TRAINING_ERRORS.CUSTOM_EXERCISE_NOT_FOUND)
-  }
   
   return success({ message: '已更新' })
 }
 
 /**
- * 删除自定义动作
+ * 删除自定义动作（软删除）
  */
 async function deleteCustomExercise(db, openid, exerciseId) {
-  const deleteResult = await db.collection(COLLECTIONS.EXERCISES)
-    .where({ _id: exerciseId, openid })
-    .remove()
+  const result = await db.collection(COLLECTIONS.EXERCISES)
+    .where({ _id: exerciseId, openid, isDeleted: db.command.neq(true) })
+    .update({
+      data: {
+        isDeleted: true,
+        updatedAt: new Date()
+      }
+    })
   
-  if (deleteResult.stats.removed === 0) {
+  if (result.stats.updated === 0) {
     return fail(TRAINING_ERRORS.CUSTOM_EXERCISE_NOT_FOUND)
   }
   
@@ -533,169 +556,328 @@ async function deleteCustomExercise(db, openid, exerciseId) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 视频相关业务
+// 视频相关业务（支持 scopeType）
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * 为周计划中的项目添加视频
+ * 添加视频
+ * @param {Object} db - 数据库实例
+ * @param {string} openid - 用户标识
+ * @param {string} scopeType - "customExercise" | "templateItem"
+ * @param {string} scopeId - 自定义动作 ID 或模板项目 itemId
+ * @param {Object} videoData - { title, url }
  */
-async function addVideo(db, openid, weekId, dayIndex, itemId, videoData) {
+async function addVideo(db, openid, scopeType, scopeId, videoData) {
   const videoResult = validation.validateVideo(videoData)
   if (!videoResult.valid) {
     return fail(videoResult.error)
   }
   
-  // 获取周计划
-  const weekResult = await db.collection(COLLECTIONS.WEEKS)
-    .where({ openid, weekId })
-    .limit(1)
-    .get()
+  const now = new Date()
+  const newVideo = logic.normalizeVideo({
+    ...videoResult.value,
+    videoId: logic.generateVideoId()
+  }, now)
   
-  if (!weekResult.data || weekResult.data.length === 0) {
-    return fail(TRAINING_ERRORS.WEEK_NOT_FOUND)
-  }
-  
-  const week = weekResult.data[0]
-  const dayIdx = week.days.findIndex(d => d.dayIndex === dayIndex)
-  if (dayIdx === -1) {
-    return fail(TRAINING_ERRORS.WEEK_ITEM_NOT_FOUND)
-  }
-  
-  const exerciseIdx = week.days[dayIdx].exercises.findIndex(e => e.itemId === itemId)
-  if (exerciseIdx === -1) {
-    return fail(TRAINING_ERRORS.WEEK_ITEM_NOT_FOUND)
-  }
-  
-  const exercise = week.days[dayIdx].exercises[exerciseIdx]
-  const currentVideos = exercise.videoLinks || []
-  
-  // 检查视频数量限制
-  if (currentVideos.length >= 3) {
-    return fail(TRAINING_ERRORS.VIDEO_LIMIT)
-  }
-  
-  // 检查重复
-  if (currentVideos.some(v => v.url === videoResult.value.url)) {
-    return fail(TRAINING_ERRORS.VIDEO_DUPLICATE)
-  }
-  
-  const videoPath = `days.${dayIdx}.exercises.${exerciseIdx}.videoLinks`
-  
-  await db.collection(COLLECTIONS.WEEKS)
-    .doc(week._id)
-    .update({
-      data: {
-        [videoPath]: db.command.push(videoResult.value),
-        updatedAt: new Date()
+  if (scopeType === 'customExercise') {
+    // 自定义动作
+    const existing = await db.collection(COLLECTIONS.EXERCISES)
+      .where({ _id: scopeId, openid, isDeleted: db.command.neq(true) })
+      .get()
+    
+    if (!existing.data || existing.data.length === 0) {
+      return fail(TRAINING_ERRORS.CUSTOM_EXERCISE_NOT_FOUND)
+    }
+    
+    const exercise = existing.data[0]
+    const currentVideos = exercise.videoLinks || []
+    
+    const validation = logic.validateAddVideo(currentVideos, newVideo.url)
+    if (!validation.canAdd) {
+      return fail(validation.error)
+    }
+    
+    await db.collection(COLLECTIONS.EXERCISES)
+      .doc(scopeId)
+      .update({
+        data: {
+          videoLinks: db.command.push(newVideo),
+          updatedAt: now
+        }
+      })
+    
+    return success({ videoId: newVideo.videoId })
+    
+  } else if (scopeType === 'templateItem') {
+    // 模板项目
+    const templateResult = await db.collection(COLLECTIONS.TEMPLATES)
+      .where({ openid, status: 'active' })
+      .get()
+    
+    if (!templateResult.data || templateResult.data.length === 0) {
+      return fail(TRAINING_ERRORS.TEMPLATE_NOT_FOUND)
+    }
+    
+    const template = templateResult.data[0]
+    
+    // 查找项目
+    let dayIdx = -1
+    let exIdx = -1
+    for (let di = 0; di < template.days.length; di++) {
+      const idx = template.days[di].exercises.findIndex(e => e.itemId === scopeId)
+      if (idx !== -1) {
+        dayIdx = di
+        exIdx = idx
+        break
       }
-    })
-  
-  return success({ message: '视频已添加' })
+    }
+    
+    if (dayIdx === -1) {
+      return fail(TRAINING_ERRORS.WEEK_ITEM_NOT_FOUND)
+    }
+    
+    const exercise = template.days[dayIdx].exercises[exIdx]
+    const currentVideos = exercise.videoLinks || []
+    
+    const validateResult = logic.validateAddVideo(currentVideos, newVideo.url)
+    if (!validateResult.canAdd) {
+      return fail(validateResult.error)
+    }
+    
+    // 更新模板项目视频并增加版本号
+    const videoPath = `days.${dayIdx}.exercises.${exIdx}.videoLinks`
+    
+    await db.collection(COLLECTIONS.TEMPLATES)
+      .doc(template._id)
+      .update({
+        data: {
+          [videoPath]: db.command.push(newVideo),
+          updatedAt: now,
+          version: db.command.inc(1)
+        }
+      })
+    
+    return success({ videoId: newVideo.videoId })
+    
+  } else {
+    return fail(TRAINING_ERRORS.INVALID_INPUT)
+  }
 }
 
 /**
  * 更新视频
  */
-async function updateVideo(db, openid, weekId, dayIndex, itemId, videoIndex, videoData) {
+async function updateVideo(db, openid, scopeType, scopeId, videoId, videoData) {
   const videoResult = validation.validateVideo(videoData)
   if (!videoResult.valid) {
     return fail(videoResult.error)
   }
   
-  // 获取周计划
-  const weekResult = await db.collection(COLLECTIONS.WEEKS)
-    .where({ openid, weekId })
-    .limit(1)
-    .get()
+  const now = new Date()
   
-  if (!weekResult.data || weekResult.data.length === 0) {
-    return fail(TRAINING_ERRORS.WEEK_NOT_FOUND)
-  }
-  
-  const week = weekResult.data[0]
-  const dayIdx = week.days.findIndex(d => d.dayIndex === dayIndex)
-  if (dayIdx === -1) {
-    return fail(TRAINING_ERRORS.WEEK_ITEM_NOT_FOUND)
-  }
-  
-  const exerciseIdx = week.days[dayIdx].exercises.findIndex(e => e.itemId === itemId)
-  if (exerciseIdx === -1) {
-    return fail(TRAINING_ERRORS.WEEK_ITEM_NOT_FOUND)
-  }
-  
-  const exercise = week.days[dayIdx].exercises[exerciseIdx]
-  const currentVideos = exercise.videoLinks || []
-  
-  if (videoIndex < 0 || videoIndex >= currentVideos.length) {
-    return fail(TRAINING_ERRORS.VIDEO_NOT_FOUND)
-  }
-  
-  // 检查新 URL 是否与其他视频重复
-  const otherUrls = currentVideos.filter((_, i) => i !== videoIndex).map(v => v.url)
-  if (otherUrls.includes(videoResult.value.url)) {
-    return fail(TRAINING_ERRORS.VIDEO_DUPLICATE)
-  }
-  
-  const videoPath = `days.${dayIdx}.exercises.${exerciseIdx}.videoLinks.${videoIndex}`
-  
-  await db.collection(COLLECTIONS.WEEKS)
-    .doc(week._id)
-    .update({
-      data: {
-        [videoPath]: videoResult.value,
-        updatedAt: new Date()
+  if (scopeType === 'customExercise') {
+    const existing = await db.collection(COLLECTIONS.EXERCISES)
+      .where({ _id: scopeId, openid, isDeleted: db.command.neq(true) })
+      .get()
+    
+    if (!existing.data || existing.data.length === 0) {
+      return fail(TRAINING_ERRORS.CUSTOM_EXERCISE_NOT_FOUND)
+    }
+    
+    const exercise = existing.data[0]
+    const videoInfo = logic.findVideoById(exercise.videoLinks, videoId)
+    
+    if (!videoInfo) {
+      return fail(TRAINING_ERRORS.VIDEO_NOT_FOUND)
+    }
+    
+    // 检查新 URL 是否与其他视频重复
+    const otherUrls = exercise.videoLinks
+      .filter((_, i) => i !== videoInfo.index)
+      .map(v => v.url)
+    
+    if (otherUrls.includes(videoResult.value.url)) {
+      return fail(TRAINING_ERRORS.VIDEO_DUPLICATE)
+    }
+    
+    const updatedVideo = {
+      ...videoInfo.video,
+      title: videoResult.value.title,
+      url: videoResult.value.url,
+      updatedAt: now
+    }
+    
+    const newVideoLinks = [...exercise.videoLinks]
+    newVideoLinks[videoInfo.index] = updatedVideo
+    
+    await db.collection(COLLECTIONS.EXERCISES)
+      .doc(scopeId)
+      .update({
+        data: {
+          videoLinks: newVideoLinks,
+          updatedAt: now
+        }
+      })
+    
+    return success({ message: '视频已更新' })
+    
+  } else if (scopeType === 'templateItem') {
+    const templateResult = await db.collection(COLLECTIONS.TEMPLATES)
+      .where({ openid, status: 'active' })
+      .get()
+    
+    if (!templateResult.data || templateResult.data.length === 0) {
+      return fail(TRAINING_ERRORS.TEMPLATE_NOT_FOUND)
+    }
+    
+    const template = templateResult.data[0]
+    
+    // 查找项目
+    let dayIdx = -1
+    let exIdx = -1
+    for (let di = 0; di < template.days.length; di++) {
+      const idx = template.days[di].exercises.findIndex(e => e.itemId === scopeId)
+      if (idx !== -1) {
+        dayIdx = di
+        exIdx = idx
+        break
       }
-    })
-  
-  return success({ message: '视频已更新' })
+    }
+    
+    if (dayIdx === -1) {
+      return fail(TRAINING_ERRORS.WEEK_ITEM_NOT_FOUND)
+    }
+    
+    const exercise = template.days[dayIdx].exercises[exIdx]
+    const videoInfo = logic.findVideoById(exercise.videoLinks, videoId)
+    
+    if (!videoInfo) {
+      return fail(TRAINING_ERRORS.VIDEO_NOT_FOUND)
+    }
+    
+    const otherUrls = exercise.videoLinks
+      .filter((_, i) => i !== videoInfo.index)
+      .map(v => v.url)
+    
+    if (otherUrls.includes(videoResult.value.url)) {
+      return fail(TRAINING_ERRORS.VIDEO_DUPLICATE)
+    }
+    
+    const updatedVideo = {
+      ...videoInfo.video,
+      title: videoResult.value.title,
+      url: videoResult.value.url,
+      updatedAt: now
+    }
+    
+    const newVideoLinks = [...exercise.videoLinks]
+    newVideoLinks[videoInfo.index] = updatedVideo
+    
+    const videoPath = `days.${dayIdx}.exercises.${exIdx}.videoLinks`
+    
+    await db.collection(COLLECTIONS.TEMPLATES)
+      .doc(template._id)
+      .update({
+        data: {
+          [videoPath]: newVideoLinks,
+          updatedAt: now,
+          version: db.command.inc(1)
+        }
+      })
+    
+    return success({ message: '视频已更新' })
+    
+  } else {
+    return fail(TRAINING_ERRORS.INVALID_INPUT)
+  }
 }
 
 /**
  * 删除视频
  */
-async function deleteVideo(db, openid, weekId, dayIndex, itemId, videoIndex) {
-  // 获取周计划
-  const weekResult = await db.collection(COLLECTIONS.WEEKS)
-    .where({ openid, weekId })
-    .limit(1)
-    .get()
+async function deleteVideo(db, openid, scopeType, scopeId, videoId) {
+  const now = new Date()
   
-  if (!weekResult.data || weekResult.data.length === 0) {
-    return fail(TRAINING_ERRORS.WEEK_NOT_FOUND)
-  }
-  
-  const week = weekResult.data[0]
-  const dayIdx = week.days.findIndex(d => d.dayIndex === dayIndex)
-  if (dayIdx === -1) {
-    return fail(TRAINING_ERRORS.WEEK_ITEM_NOT_FOUND)
-  }
-  
-  const exerciseIdx = week.days[dayIdx].exercises.findIndex(e => e.itemId === itemId)
-  if (exerciseIdx === -1) {
-    return fail(TRAINING_ERRORS.WEEK_ITEM_NOT_FOUND)
-  }
-  
-  const exercise = week.days[dayIdx].exercises[exerciseIdx]
-  const currentVideos = exercise.videoLinks || []
-  
-  if (videoIndex < 0 || videoIndex >= currentVideos.length) {
-    return fail(TRAINING_ERRORS.VIDEO_NOT_FOUND)
-  }
-  
-  // 移除指定索引的视频
-  const newVideos = currentVideos.filter((_, i) => i !== videoIndex)
-  const videoPath = `days.${dayIdx}.exercises.${exerciseIdx}.videoLinks`
-  
-  await db.collection(COLLECTIONS.WEEKS)
-    .doc(week._id)
-    .update({
-      data: {
-        [videoPath]: newVideos,
-        updatedAt: new Date()
+  if (scopeType === 'customExercise') {
+    const existing = await db.collection(COLLECTIONS.EXERCISES)
+      .where({ _id: scopeId, openid, isDeleted: db.command.neq(true) })
+      .get()
+    
+    if (!existing.data || existing.data.length === 0) {
+      return fail(TRAINING_ERRORS.CUSTOM_EXERCISE_NOT_FOUND)
+    }
+    
+    const exercise = existing.data[0]
+    const videoInfo = logic.findVideoById(exercise.videoLinks, videoId)
+    
+    if (!videoInfo) {
+      return fail(TRAINING_ERRORS.VIDEO_NOT_FOUND)
+    }
+    
+    const newVideoLinks = exercise.videoLinks.filter((_, i) => i !== videoInfo.index)
+    
+    await db.collection(COLLECTIONS.EXERCISES)
+      .doc(scopeId)
+      .update({
+        data: {
+          videoLinks: newVideoLinks,
+          updatedAt: now
+        }
+      })
+    
+    return success({ message: '视频已删除' })
+    
+  } else if (scopeType === 'templateItem') {
+    const templateResult = await db.collection(COLLECTIONS.TEMPLATES)
+      .where({ openid, status: 'active' })
+      .get()
+    
+    if (!templateResult.data || templateResult.data.length === 0) {
+      return fail(TRAINING_ERRORS.TEMPLATE_NOT_FOUND)
+    }
+    
+    const template = templateResult.data[0]
+    
+    let dayIdx = -1
+    let exIdx = -1
+    for (let di = 0; di < template.days.length; di++) {
+      const idx = template.days[di].exercises.findIndex(e => e.itemId === scopeId)
+      if (idx !== -1) {
+        dayIdx = di
+        exIdx = idx
+        break
       }
-    })
-  
-  return success({ message: '视频已删除' })
+    }
+    
+    if (dayIdx === -1) {
+      return fail(TRAINING_ERRORS.WEEK_ITEM_NOT_FOUND)
+    }
+    
+    const exercise = template.days[dayIdx].exercises[exIdx]
+    const videoInfo = logic.findVideoById(exercise.videoLinks, videoId)
+    
+    if (!videoInfo) {
+      return fail(TRAINING_ERRORS.VIDEO_NOT_FOUND)
+    }
+    
+    const newVideoLinks = exercise.videoLinks.filter((_, i) => i !== videoInfo.index)
+    const videoPath = `days.${dayIdx}.exercises.${exIdx}.videoLinks`
+    
+    await db.collection(COLLECTIONS.TEMPLATES)
+      .doc(template._id)
+      .update({
+        data: {
+          [videoPath]: newVideoLinks,
+          updatedAt: now,
+          version: db.command.inc(1)
+        }
+      })
+    
+    return success({ message: '视频已删除' })
+    
+  } else {
+    return fail(TRAINING_ERRORS.INVALID_INPUT)
+  }
 }
 
 // 导出模块
