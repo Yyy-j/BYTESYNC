@@ -369,6 +369,7 @@ function createCustomExerciseObject({ openid, exerciseData, now }) {
     englishName: String(exerciseData.englishName || '').trim(),
     category: String(exerciseData.category || '其他').trim(),
     itemType,
+    sourceType: 'custom',  // 标记为自定义动作
     isDeleted: false,
     createdAt: now,
     updatedAt: now

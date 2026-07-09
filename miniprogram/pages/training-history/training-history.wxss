@@ -1,36 +1,10 @@
-/* pages/training/training.wxss — 训练首页样式 */
+/* pages/training-history/training-history.wxss — 训练历史页面样式 */
 @import '/styles/common.wxss';
 
 .page {
   min-height: 100vh;
   padding: var(--page-padding);
-  padding-bottom: 200rpx;
-}
-
-/* ── 页面标题 ── */
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--spacing-lg) 0;
-}
-
-.page-title {
-  font-size: var(--font-size-xl);
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-}
-
-.header-link {
-  font-size: var(--font-size-sm);
-  color: var(--color-primary);
-  padding: var(--spacing-xs) var(--spacing-sm);
+  padding-bottom: 100rpx;
 }
 
 /* ── 状态容器 ── */
@@ -41,7 +15,7 @@
   min-height: 60vh;
 }
 
-/* ── Loading 状态 ── */
+/* ── Loading ── */
 .loading-box {
   display: flex;
   flex-direction: column;
@@ -120,88 +94,108 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
   text-align: center;
-  line-height: 1.5;
 }
 
-.create-btn {
-  margin-top: var(--spacing-lg);
-  width: 100%;
-}
-
-/* ── 内容区域 ── */
-.content {
+/* ── 历史列表 ── */
+.history-list {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
 }
 
-/* ── 日期切换 ── */
-.day-tabs {
-  display: flex;
-  white-space: nowrap;
-  margin: 0 calc(-1 * var(--page-padding));
-  padding: 0 var(--page-padding);
+/* ── 周卡片 ── */
+.week-item {
+  overflow: hidden;
 }
 
-.day-tab {
+.week-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-md);
+}
+
+.week-info {
   display: flex;
   flex-direction: column;
+  gap: 4rpx;
+}
+
+.week-id {
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.week-range {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+.week-summary {
+  display: flex;
   align-items: center;
-  padding: var(--spacing-sm) var(--spacing-md);
-  margin-right: var(--spacing-xs);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-card);
-  min-width: 80rpx;
+  gap: var(--spacing-sm);
 }
 
-.day-tab.active {
-  background: var(--color-primary);
+.week-progress {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
 }
 
-.day-tab.active .day-name {
-  color: #fff;
+.expand-icon {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+/* ── 周详情 ── */
+.week-detail {
+  padding: 0 var(--spacing-md) var(--spacing-md);
+  border-top: 1rpx solid var(--color-border);
+}
+
+.day-section {
+  padding: var(--spacing-md) 0;
+  border-bottom: 1rpx solid var(--color-border);
+}
+
+.day-section:last-child {
+  border-bottom: none;
+}
+
+.day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
 }
 
 .day-name {
   font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  font-weight: 500;
+  font-weight: 600;
+  color: var(--color-text-primary);
 }
 
-.today-dot {
-  font-size: 32rpx;
-  color: var(--color-primary);
-  line-height: 1;
-  margin-top: -4rpx;
+.day-date {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
 }
 
-.day-tab.active .today-dot {
-  color: #fff;
-}
-
-/* ── 训练列表 ── */
-.exercise-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-  margin-top: var(--spacing-sm);
-}
-
-/* ── 休息日 ── */
 .rest-day {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--spacing-xxl);
-  gap: var(--spacing-sm);
-}
-
-.rest-icon {
-  font-size: 80rpx;
-}
-
-.rest-text {
-  font-size: var(--font-size-lg);
+  padding: var(--spacing-md);
+  text-align: center;
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
+}
+
+/* ── 加载更多 ── */
+.load-more, .no-more {
+  text-align: center;
+  padding: var(--spacing-lg);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+}
+
+.load-more text {
+  color: var(--color-primary);
 }

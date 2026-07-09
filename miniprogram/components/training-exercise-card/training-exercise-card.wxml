@@ -19,13 +19,13 @@
       <text class="target-item">{{exercise.targetWeight || 0}}kg × {{exercise.targetReps || 12}}次</text>
     </block>
     <block wx:else>
-      <text class="target-item">{{exercise.targetDuration || 0}}分钟</text>
+      <text class="target-item">{{exercise.targetDuration || 0}}秒</text>
     </block>
   </view>
 
-  <!-- 打卡按钮 -->
-  <view class="checkin-section">
-    <button 
+  <!-- 打卡按钮（非只读模式） -->
+  <view wx:if="{{!readonly}}" class="checkin-section">
+    <button
       class="checkin-btn {{exercise.completedSets >= exercise.targetSets ? 'disabled' : ''}}"
       disabled="{{exercise.completedSets >= exercise.targetSets || isSubmitting}}"
       loading="{{isSubmitting}}"
@@ -36,14 +36,14 @@
     </button>
   </view>
 
-  <!-- 输入区域（可展开） -->
-  <view wx:if="{{showInput}}" class="input-section">
+  <!-- 输入区域（可展开，非只读模式） -->
+  <view wx:if="{{showInput && !readonly}}" class="input-section">
     <view class="input-row" wx:if="{{exercise.itemType !== 'cardio'}}">
       <view class="input-group">
         <text class="input-label">重量</text>
-        <input 
-          class="input-field" 
-          type="digit" 
+        <input
+          class="input-field"
+          type="digit"
           placeholder="kg"
           value="{{inputWeight}}"
           bindinput="onWeightInput"
@@ -51,9 +51,9 @@
       </view>
       <view class="input-group">
         <text class="input-label">次数</text>
-        <input 
-          class="input-field" 
-          type="number" 
+        <input
+          class="input-field"
+          type="number"
           placeholder="次"
           value="{{inputReps}}"
           bindinput="onRepsInput"
@@ -63,9 +63,9 @@
     <view class="input-row">
       <view class="input-group">
         <text class="input-label">RPE</text>
-        <input 
-          class="input-field" 
-          type="number" 
+        <input
+          class="input-field"
+          type="number"
           placeholder="1-10"
           value="{{inputRpe}}"
           bindinput="onRpeInput"
@@ -73,9 +73,9 @@
       </view>
       <view class="input-group flex-1">
         <text class="input-label">备注</text>
-        <input 
-          class="input-field" 
-          type="text" 
+        <input
+          class="input-field"
+          type="text"
           placeholder="可选"
           value="{{inputRemark}}"
           bindinput="onRemarkInput"
@@ -87,13 +87,35 @@
   <!-- 已完成组详情 -->
   <view wx:if="{{exercise.setDetails && exercise.setDetails.length > 0}}" class="set-details">
     <view class="set-detail-item" wx:for="{{exercise.setDetails}}" wx:key="requestId">
-      <text class="set-number">第{{index + 1}}组</text>
-      <text class="set-info">
-        <text wx:if="{{item.weight !== undefined}}">{{item.weight}}kg</text>
-        <text wx:if="{{item.reps !== undefined}}"> × {{item.reps}}</text>
-        <text wx:if="{{item.rpe !== undefined}}"> ｜ RPE {{item.rpe}}</text>
-      </text>
-      <text wx:if="{{item.remark}}" class="set-remark">{{item.remark}}</text>
+      <!-- 编辑模式 -->
+      <block wx:if="{{editingSetIndex === index && !readonly}}">
+        <view class="edit-form">
+          <text class="set-number">第{{index + 1}}组</text>
+          <view class="edit-row">
+            <input class="edit-field" type="digit" placeholder="重量" value="{{editWeight}}" bindinput="onEditWeightInput" />
+            <input class="edit-field" type="number" placeholder="次数" value="{{editReps}}" bindinput="onEditRepsInput" />
+            <input class="edit-field" type="number" placeholder="RPE" value="{{editRpe}}" bindinput="onEditRpeInput" />
+          </view>
+          <view class="edit-row">
+            <input class="edit-field flex-1" type="text" placeholder="备注" value="{{editRemark}}" bindinput="onEditRemarkInput" maxlength="200" />
+          </view>
+          <view class="edit-actions">
+            <text class="edit-cancel" bind:tap="onCancelEdit">取消</text>
+            <text class="edit-save" bind:tap="onSaveEdit">{{isEditing ? '保存中...' : '保存'}}</text>
+          </view>
+        </view>
+      </block>
+      <!-- 显示模式 -->
+      <block wx:else>
+        <text class="set-number">第{{index + 1}}组</text>
+        <text class="set-info">
+          <text wx:if="{{item.weight !== undefined && item.weight !== null}}">{{item.weight}}kg</text>
+          <text wx:if="{{item.reps !== undefined && item.reps !== null}}"> × {{item.reps}}</text>
+          <text wx:if="{{item.rpe !== undefined && item.rpe !== null && item.rpe !== ''}}"> ｜ RPE {{item.rpe}}</text>
+        </text>
+        <text wx:if="{{item.remark}}" class="set-remark">{{item.remark}}</text>
+        <text wx:if="{{!readonly}}" class="edit-btn" data-index="{{index}}" bind:tap="onStartEdit">编辑</text>
+      </block>
     </view>
   </view>
 </view>

@@ -155,6 +155,15 @@ Page({
   },
 
   /**
+   * 跳转到训练历史页
+   */
+  onGoHistory() {
+    wx.navigateTo({
+      url: '/pages/training-history/training-history'
+    })
+  },
+
+  /**
    * 打卡成功回调，刷新周计划
    */
   async onCheckinSuccess() {

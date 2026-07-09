@@ -1,7 +1,7 @@
 // components/training-exercise-card/training-exercise-card.js — 训练打卡组件
-// 显示单个动作的打卡进度和已完成组详情
+// 显示单个动作的打卡进度和已完成组详情，支持编辑
 
-const { incrementExerciseSet, createTrainingRequestId } = require('../../utils/training-api')
+const { incrementExerciseSet, updateExerciseSetDetail, createTrainingRequestId } = require('../../utils/training-api')
 
 Component({
   properties: {
@@ -14,6 +14,11 @@ Component({
     weekDocId: {
       type: String,
       value: ''
+    },
+    // 只读模式（历史页面使用）
+    readonly: {
+      type: Boolean,
+      value: false
     }
   },
 
@@ -28,7 +33,14 @@ Component({
     // 是否提交中
     isSubmitting: false,
     // 当前请求 ID（用于幂等）
-    currentRequestId: ''
+    currentRequestId: '',
+    // 编辑模式
+    editingSetIndex: -1,  // -1 表示不在编辑
+    editWeight: '',
+    editReps: '',
+    editRpe: '',
+    editRemark: '',
+    isEditing: false
   },
 
   observers: {
@@ -49,6 +61,7 @@ Component({
      * 展开/收起输入框
      */
     toggleInput() {
+      if (this.data.readonly) return
       this.setData({ showInput: !this.data.showInput })
     },
 
@@ -81,17 +94,40 @@ Component({
     },
 
     /**
+     * 校验 RPE 输入
+     * @returns {boolean} 是否有效
+     */
+    _validateRpe(rpeValue) {
+      // 空值允许提交
+      if (rpeValue === '' || rpeValue === undefined || rpeValue === null) {
+        return true
+      }
+      const rpe = parseInt(rpeValue, 10)
+      // 必须是 1-10 的整数
+      if (isNaN(rpe) || rpe < 1 || rpe > 10 || String(rpe) !== String(rpeValue).trim()) {
+        return false
+      }
+      return true
+    },
+
+    /**
      * 打卡 +1 组
      */
     async onCheckin() {
       // 防止连续点击
-      if (this.data.isSubmitting) return
+      if (this.data.isSubmitting || this.data.readonly) return
 
       const { exercise, weekDocId, inputWeight, inputReps, inputRpe, inputRemark } = this.data
 
       // 检查是否已达目标
       if (exercise.completedSets >= exercise.targetSets) {
         wx.showToast({ title: '已完成全部组数', icon: 'none' })
+        return
+      }
+
+      // 校验 RPE
+      if (!this._validateRpe(inputRpe)) {
+        wx.showToast({ title: 'RPE 必须是 1-10 的整数', icon: 'none' })
         return
       }
 
@@ -146,7 +182,6 @@ Component({
         
         // 错误处理
         if (err.code === 'TRAINING_TARGET_REACHED') {
-          // 已达目标，刷新数据
           this.setData({ currentRequestId: '' })
           this.triggerEvent('checkinSuccess', {})
         }
@@ -158,15 +193,118 @@ Component({
     },
 
     /**
-     * 格式化组详情显示
+     * 开始编辑某组
      */
-    formatSetDetail(detail) {
-      if (!detail) return ''
-      const parts = []
-      if (detail.weight !== undefined) parts.push(`${detail.weight}kg`)
-      if (detail.reps !== undefined) parts.push(`× ${detail.reps}`)
-      if (detail.rpe !== undefined) parts.push(`RPE ${detail.rpe}`)
-      return parts.join(' ')
+    onStartEdit(e) {
+      if (this.data.readonly || this.data.isEditing) return
+      const index = e.currentTarget.dataset.index
+      const setDetail = this.data.exercise.setDetails[index]
+      if (!setDetail) return
+
+      this.setData({
+        editingSetIndex: index,
+        editWeight: setDetail.weight !== undefined ? String(setDetail.weight) : '',
+        editReps: setDetail.reps !== undefined ? String(setDetail.reps) : '',
+        editRpe: setDetail.rpe !== undefined && setDetail.rpe !== null ? String(setDetail.rpe) : '',
+        editRemark: setDetail.remark || ''
+      })
+    },
+
+    /**
+     * 取消编辑
+     */
+    onCancelEdit() {
+      this.setData({
+        editingSetIndex: -1,
+        editWeight: '',
+        editReps: '',
+        editRpe: '',
+        editRemark: ''
+      })
+    },
+
+    /**
+     * 编辑输入
+     */
+    onEditWeightInput(e) {
+      this.setData({ editWeight: e.detail.value })
+    },
+    onEditRepsInput(e) {
+      this.setData({ editReps: e.detail.value })
+    },
+    onEditRpeInput(e) {
+      this.setData({ editRpe: e.detail.value })
+    },
+    onEditRemarkInput(e) {
+      this.setData({ editRemark: e.detail.value })
+    },
+
+    /**
+     * 保存编辑
+     */
+    async onSaveEdit() {
+      if (this.data.isEditing) return
+
+      const { exercise, weekDocId, editingSetIndex, editWeight, editReps, editRpe, editRemark } = this.data
+      const setDetail = exercise.setDetails[editingSetIndex]
+      if (!setDetail) return
+
+      // 校验 RPE
+      if (!this._validateRpe(editRpe)) {
+        wx.showToast({ title: 'RPE 必须是 1-10 的整数', icon: 'none' })
+        return
+      }
+
+      // 校验备注长度
+      if (editRemark.length > 200) {
+        wx.showToast({ title: '备注不能超过200字符', icon: 'none' })
+        return
+      }
+
+      this.setData({ isEditing: true })
+
+      try {
+        const params = {
+          weekDocId,
+          weekItemId: exercise.weekItemId,
+          requestId: setDetail.requestId
+        }
+
+        // 解析输入值
+        const weight = parseFloat(editWeight)
+        const reps = parseInt(editReps, 10)
+        const rpe = parseInt(editRpe, 10)
+
+        if (!isNaN(weight) && weight >= 0 && weight <= 1000) params.weight = weight
+        if (!isNaN(reps) && reps >= 1 && reps <= 999) params.reps = reps
+        if (!isNaN(rpe) && rpe >= 1 && rpe <= 10) {
+          params.rpe = rpe
+        } else if (editRpe === '' || editRpe === undefined) {
+          // 清空 RPE
+          params.rpe = null
+        }
+        params.remark = editRemark.trim()
+
+        await updateExerciseSetDetail(params)
+
+        this.setData({
+          editingSetIndex: -1,
+          editWeight: '',
+          editReps: '',
+          editRpe: '',
+          editRemark: ''
+        })
+
+        // 通知页面刷新
+        this.triggerEvent('checkinSuccess', {})
+        wx.showToast({ title: '保存成功', icon: 'success' })
+
+      } catch (err) {
+        console.error('[training-exercise-card] 编辑失败', err)
+        wx.showToast({ title: err.message || '保存失败', icon: 'none' })
+      } finally {
+        this.setData({ isEditing: false })
+      }
     }
   }
 })

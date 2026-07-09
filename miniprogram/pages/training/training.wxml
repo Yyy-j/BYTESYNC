@@ -1,11 +1,16 @@
 <!-- pages/training/training.wxml — 训练首页 -->
 <view class="page">
-  
+
   <!-- 页面标题 -->
   <view class="header">
     <text class="page-title">训练</text>
-    <view wx:if="{{state === 'loaded'}}" class="edit-link" bind:tap="onEditTemplate">
-      <text>编辑模板</text>
+    <view class="header-actions">
+      <view wx:if="{{state === 'loaded'}}" class="header-link" bind:tap="onGoHistory">
+        <text>历史</text>
+      </view>
+      <view wx:if="{{state === 'loaded'}}" class="header-link" bind:tap="onEditTemplate">
+        <text>编辑模板</text>
+      </view>
     </view>
   </view>
 

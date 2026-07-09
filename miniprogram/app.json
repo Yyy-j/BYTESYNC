@@ -5,6 +5,7 @@
     "pages/training/training",
     "pages/training-template/training-template",
     "pages/training-exercise/training-exercise",
+    "pages/training-history/training-history",
     "pages/pairing/pairing"
   ],
   "tabBar": {
