@@ -220,6 +220,13 @@ Page({
   },
 
   /**
+   * 弹窗内容点击（阻止冒泡）
+   */
+  onModalContentTap() {
+    // 阻止事件冒泡到遮罩层
+  },
+
+  /**
    * 创建表单输入
    */
   onCreateFormInput(e) {
@@ -231,7 +238,10 @@ Page({
    * 选择动作类型
    */
   onItemTypeChange(e) {
-    this.setData({ 'createForm.itemType': e.currentTarget.dataset.type })
+    const type = e.currentTarget.dataset.type
+    if (type === 'strength' || type === 'cardio') {
+      this.setData({ 'createForm.itemType': type })
+    }
   },
 
   /**

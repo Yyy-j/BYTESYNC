@@ -23,15 +23,15 @@
     
     <!-- 星期切换 -->
     <scroll-view class="day-tabs" scroll-x enable-flex>
-      <view 
-        wx:for="{{dayNames}}" 
+      <view
+        wx:for="{{dayNames}}"
         wx:key="index"
         class="day-tab {{currentDay === index ? 'active' : ''}}"
         data-day="{{index}}"
         bind:tap="onDayChange"
       >
         <text class="day-name">{{item}}</text>
-        <text class="day-count" wx:if="{{days[index].exercises.length > 0}}">
+        <text class="day-count" wx:if="{{days[index].exercises.length}}">
           {{days[index].exercises.length}}
         </text>
       </view>

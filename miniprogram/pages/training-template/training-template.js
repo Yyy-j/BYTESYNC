@@ -43,7 +43,10 @@ Page({
       targetReps: '',
       targetWeight: '',
       targetDuration: ''
-    }
+    },
+
+    // 加载时已存在的 itemId 集合（用于判断是否已保存）
+    savedItemIds: new Set()
   },
 
   onLoad(options) {
@@ -90,10 +93,18 @@ Page({
         if (result.template && result.template.days) {
           // 确保有7天数据
           const days = this._normalizeDays(result.template.days)
+          // 记录已保存的 itemId
+          const savedItemIds = new Set()
+          days.forEach(day => {
+            (day.exercises || []).forEach(ex => {
+              if (ex.itemId) savedItemIds.add(ex.itemId)
+            })
+          })
           this.setData({
             hasTemplate: true,
             days,
             currentExercises: days[0].exercises || [],
+            savedItemIds,
             state: 'ready'
           })
         } else {
@@ -125,6 +136,7 @@ Page({
       hasTemplate: false,
       days,
       currentExercises: [],
+      savedItemIds: new Set(),
       state: 'ready'
     })
   },
@@ -401,6 +413,12 @@ Page({
     const index = e.currentTarget.dataset.index
     const exercise = this.data.currentExercises[index]
     if (!exercise) return
+
+    // 检查是否是已保存的动作
+    if (!this.data.savedItemIds.has(exercise.itemId)) {
+      wx.showToast({ title: '请先保存训练模板，再管理教学视频', icon: 'none', duration: 2500 })
+      return
+    }
 
     const that = this
     wx.navigateTo({

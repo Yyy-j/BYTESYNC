@@ -99,6 +99,13 @@ Page({
   },
 
   /**
+   * 弹窗内容点击（阻止冒泡）
+   */
+  onFormPopupTap() {
+    // 阻止事件冒泡到遮罩层
+  },
+
+  /**
    * 输入标题
    */
   onTitleInput(e) {
@@ -120,8 +127,8 @@ Page({
       return { valid: false, error: '请输入URL' }
     }
     const trimmed = url.trim()
-    if (!trimmed.startsWith('https://')) {
-      return { valid: false, error: 'URL必须以 https:// 开头' }
+    if (!trimmed.startsWith('https://') && !trimmed.startsWith('http://')) {
+      return { valid: false, error: 'URL必须以 http:// 或 https:// 开头' }
     }
     // 检查重复
     const { videoLinks, isEditing, editingIndex } = this.data

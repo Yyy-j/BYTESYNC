@@ -20,8 +20,8 @@ Page({
     const decodedUrl = decodeURIComponent(url)
     
     // 仅允许 HTTPS
-    if (!decodedUrl.startsWith('https://')) {
-      wx.showToast({ title: '仅支持 HTTPS 链接', icon: 'none' })
+    if (!decodedUrl.startsWith('https://') && !decodedUrl.startsWith('http://')) {
+      wx.showToast({ title: '仅支持 http/https 链接', icon: 'none' })
       wx.navigateBack()
       return
     }

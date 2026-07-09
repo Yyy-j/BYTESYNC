@@ -126,13 +126,13 @@
 
   <!-- ══════════════ 创建动作弹窗 ══════════════ -->
   <view wx:if="{{showCreateForm}}" class="modal-mask" bind:tap="onHideCreateForm">
-    <view class="modal-content card" catchtap="">
+    <view class="modal-content card" catchtap="onModalContentTap">
       <view class="modal-header">
         <text class="modal-title">创建自定义动作</text>
-        <text class="modal-close" bind:tap="onHideCreateForm">✕</text>
+        <text class="modal-close" catchtap="onHideCreateForm">✕</text>
       </view>
       
-      <view class="form-section">
+      <scroll-view class="form-section" scroll-y>
         <view class="form-row">
           <text class="form-label">动作名称 *</text>
           <input 
@@ -161,12 +161,12 @@
             <view 
               class="type-option {{createForm.itemType === 'strength' ? 'active' : ''}}"
               data-type="strength"
-              bind:tap="onItemTypeChange"
+              catchtap="onItemTypeChange"
             >力量</view>
             <view 
               class="type-option {{createForm.itemType === 'cardio' ? 'active' : ''}}"
               data-type="cardio"
-              bind:tap="onItemTypeChange"
+              catchtap="onItemTypeChange"
             >有氧/静态</view>
           </view>
         </view>
@@ -222,15 +222,13 @@
             />
           </view>
         </block>
-      </view>
+      </scroll-view>
 
-      <button 
-        class="primary-btn create-btn {{isCreating ? 'disabled' : ''}}"
-        disabled="{{isCreating}}"
-        bind:tap="onCreateExercise"
-      >
-        {{isCreating ? '创建中...' : '创建动作'}}
-      </button>
+      <view class="modal-footer safe-bottom">
+        <button class="primary-btn create-btn {{isCreating ? 'disabled' : ''}}" disabled="{{isCreating}}" catchtap="onCreateExercise">
+          {{isCreating ? '创建中...' : '创建动作'}}
+        </button>
+      </view>
     </view>
   </view>
 

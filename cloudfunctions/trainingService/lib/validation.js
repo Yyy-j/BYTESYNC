@@ -53,7 +53,7 @@ const TRAINING_ERRORS = {
   VIDEO_LIMIT: { code: 'TRAINING_VIDEO_LIMIT', message: '每个项目最多添加3条视频' },
   VIDEO_TITLE_REQUIRED: { code: 'TRAINING_VIDEO_TITLE_REQUIRED', message: '视频标题必填' },
   VIDEO_TITLE_TOO_LONG: { code: 'TRAINING_VIDEO_TITLE_TOO_LONG', message: '视频标题不能超过60个字符' },
-  VIDEO_URL_INVALID: { code: 'TRAINING_VIDEO_URL_INVALID', message: '视频链接必须是有效的HTTPS地址' },
+  VIDEO_URL_INVALID: { code: 'TRAINING_VIDEO_URL_INVALID', message: '视频链接必须是有效的HTTP/HTTPS地址' },
   VIDEO_DUPLICATE: { code: 'TRAINING_VIDEO_DUPLICATE', message: '该视频链接已存在' },
   VIDEO_NOT_FOUND: { code: 'TRAINING_VIDEO_NOT_FOUND', message: '未找到该视频' }
 }
@@ -139,13 +139,13 @@ const validateNumber = (value, options = {}) => {
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * 校验 HTTPS URL 格式
+ * 校验 HTTP/HTTPS URL 格式
  */
 const isValidHttpsUrl = (url) => {
   if (!url || typeof url !== 'string') {
     return false
   }
-  const pattern = /^https:\/\/[^\s/$.?#].[^\s]*$/i
+  const pattern = /^https?:\/\/[^\s/$.?#].[^\s]*$/i
   return pattern.test(url.trim())
 }
 
