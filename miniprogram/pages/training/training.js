@@ -1,7 +1,7 @@
 // pages/training/training.js — 训练首页
 // 展示当前周计划和打卡功能，支持日期切换
 
-const { getTrainingTemplate, getOrCreateTrainingWeek } = require('../../utils/training-api')
+const { getTrainingTemplate, getOrCreateTrainingWeek, syncCurrentTrainingWeek } = require('../../utils/training-api')
 const { getWeekId, getDayIndex, formatLocalDate } = require('../../utils/training-time')
 
 const app = getApp()
@@ -27,7 +27,9 @@ Page({
     // 当前日期的训练项目
     currentDayExercises: [],
     // 是否刷新中
-    isRefreshing: false
+    isRefreshing: false,
+    // 是否首次加载（用于决定是否重置 selectedDayIndex）
+    _isFirstLoad: true
   },
 
   onLoad() {
@@ -37,7 +39,7 @@ Page({
   onShow() {
     // 每次显示页面时刷新数据，确保同步最新的模板变更
     if (this.data.state !== 'loading') {
-      this._loadData()
+      this._loadData(false)  // 非首次加载，保留当前选择的星期
     }
   },
 
@@ -48,7 +50,7 @@ Page({
     if (this.data.isRefreshing) return
     this.setData({ isRefreshing: true })
     try {
-      await this._loadData()
+      await this._loadData(false)  // 保留当前选择的星期
     } finally {
       this.setData({ isRefreshing: false })
       wx.stopPullDownRefresh()
@@ -57,8 +59,9 @@ Page({
 
   /**
    * 加载数据：模板和周计划
+   * @param {boolean} resetDay - 是否重置到今天，默认 true（首次加载）
    */
-  async _loadData() {
+  async _loadData(resetDay = true) {
     this.setData({ state: 'loading', errorMsg: '' })
 
     try {
@@ -70,22 +73,49 @@ Page({
 
       // 获取模板
       const templateResult = await getTrainingTemplate()
-      
+
       if (!templateResult.template) {
         // 无模板
         this.setData({
           state: 'empty',
           template: null,
           todayDayIndex,
-          selectedDayIndex: todayDayIndex
+          selectedDayIndex: resetDay ? todayDayIndex : this.data.selectedDayIndex,
+          _isFirstLoad: false
         })
         return
       }
 
-      // 有模板，获取或创建当前周计划
+      // 有模板，先同步当前周再获取
       const template = templateResult.template
+      const templateExerciseCount = (template.days || []).reduce((sum, d) => sum + (d.exercises?.length || 0), 0)
+      console.log('[training] 模板动作数:', templateExerciseCount)
+
+      // 调用同步确保当前周与模板一致
+      try {
+        await syncCurrentTrainingWeek()
+        console.log('[training] 同步当前周成功')
+      } catch (syncErr) {
+        console.warn('[training] 同步当前周失败，继续加载:', syncErr)
+        // 同步失败不阻塞加载，getOrCreateTrainingWeek 会返回现有数据
+      }
+
+      // 获取或创建当前周计划
       const weekResult = await getOrCreateTrainingWeek()
-      const weekPlan = weekResult.week
+      let weekPlan = weekResult.week
+
+      // 标准化：确保 days 和 exercises 是数组
+      weekPlan.days = Array.isArray(weekPlan.days) ? weekPlan.days : []
+      weekPlan.days = weekPlan.days.map(day => ({
+        ...day,
+        exercises: Array.isArray(day.exercises) ? day.exercises : []
+      }))
+
+      const weekExerciseCount = weekPlan.days.reduce((sum, d) => sum + d.exercises.length, 0)
+      console.log('[training] 周动作数:', weekExerciseCount, 'weekId:', weekPlan.weekId)
+
+      // 决定选择的星期
+      const newSelectedDayIndex = resetDay ? todayDayIndex : this.data.selectedDayIndex
 
       this.setData({
         state: 'loaded',
@@ -93,17 +123,19 @@ Page({
         weekPlan,
         weekDocId: weekPlan._id,
         todayDayIndex,
-        selectedDayIndex: todayDayIndex
+        selectedDayIndex: newSelectedDayIndex,
+        _isFirstLoad: false
       })
 
       // 更新当日训练项目
-      this._updateCurrentDayExercises(todayDayIndex)
+      this._updateCurrentDayExercises(newSelectedDayIndex)
 
     } catch (err) {
       console.error('[training] 加载数据失败', err)
       this.setData({
         state: 'error',
-        errorMsg: err.message || '加载失败'
+        errorMsg: err.message || '加载失败',
+        _isFirstLoad: false
       })
     }
   },
@@ -119,7 +151,8 @@ Page({
     }
 
     const dayPlan = weekPlan.days.find(d => d.dayIndex === dayIndex)
-    const exercises = dayPlan?.exercises || []
+    // 标准化 exercises 数组
+    const exercises = Array.isArray(dayPlan?.exercises) ? dayPlan.exercises : []
 
     this.setData({ currentDayExercises: exercises })
   },

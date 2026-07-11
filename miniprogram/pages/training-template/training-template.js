@@ -4,8 +4,7 @@
 const {
   getTrainingTemplate,
   createTrainingTemplate,
-  updateTrainingTemplate,
-  syncCurrentTrainingWeek
+  updateTrainingTemplate
 } = require('../../utils/training-api')
 
 const app = getApp()
@@ -471,20 +470,23 @@ Page({
     try {
       const { days, hasTemplate } = this.data
 
+      let result
       if (hasTemplate) {
-        // 更新模板
-        await updateTrainingTemplate(days)
+        // 更新模板（后端自动同步当前周）
+        result = await updateTrainingTemplate(days)
       } else {
-        // 创建模板
-        await createTrainingTemplate(days)
+        // 创建模板（后端自动同步当前周）
+        result = await createTrainingTemplate(days)
       }
 
-      // 同步当前周计划
-      try {
-        await syncCurrentTrainingWeek()
-      } catch (syncErr) {
-        console.warn('[training-template] 同步当前周失败', syncErr)
-        // 同步失败不阻塞保存流程
+      // 验证返回的 week 包含动作
+      const templateExerciseCount = days.reduce((sum, d) => sum + (d.exercises?.length || 0), 0)
+      const weekExerciseCount = (result.week?.days || []).reduce((sum, d) => sum + (d.exercises?.length || 0), 0)
+
+      console.log('[training-template] 模板动作数:', templateExerciseCount, '周动作数:', weekExerciseCount)
+
+      if (templateExerciseCount > 0 && weekExerciseCount === 0) {
+        throw new Error('同步失败：模板有动作但周计划为空，请重试')
       }
 
       wx.showToast({ title: '保存成功', icon: 'success' })

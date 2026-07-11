@@ -54,6 +54,7 @@ async function getTemplate(db, openid) {
 /**
  * 创建用户训练模板
  * 首次创建模板时，同时创建当前周的周计划
+ * 返回值包含同步后的 week 对象
  */
 async function createTemplate(db, openid, days) {
   // 校验模板数据
@@ -61,26 +62,26 @@ async function createTemplate(db, openid, days) {
   if (!validationResult.valid) {
     return fail(validationResult.error)
   }
-  
+
   // 检查是否已有活跃模板
   const existingResult = await db.collection(COLLECTIONS.TEMPLATES)
     .where({ openid, status: 'active' })
     .count()
-  
+
   if (existingResult.total > 0) {
     return fail(TRAINING_ERRORS.TEMPLATE_EXISTS)
   }
-  
+
   const now = new Date()
   // 使用纯函数创建标准化的模板对象
   const template = logic.createTemplateObject({ openid, days, now })
-  
+
   const addResult = await db.collection(COLLECTIONS.TEMPLATES).add({ data: template })
   const templateId = addResult._id
-  
+
   // 首次创建模板时，立即创建当前周的周计划
   const currentWeekId = time.getWeekId(now)
-  
+
   // 构建周计划快照
   const templateWithId = { ...template, _id: templateId }
   const weekSnapshot = logic.buildWeekSnapshot({
@@ -88,26 +89,50 @@ async function createTemplate(db, openid, days) {
     weekId: currentWeekId,
     now
   })
-  
+
+  // 调试日志
+  const templateExerciseCount = template.days.reduce((sum, d) => sum + (d.exercises?.length || 0), 0)
+  console.log('[createTemplate] 模板 version:', template.version, '动作总数:', templateExerciseCount)
+  console.log('[createTemplate] weekId:', currentWeekId)
+
+  let week = null
   try {
-    await db.collection(COLLECTIONS.WEEKS).add({ data: weekSnapshot })
+    const addWeekResult = await db.collection(COLLECTIONS.WEEKS).add({ data: weekSnapshot })
+    // 获取刚创建的周计划
+    const newWeekResult = await db.collection(COLLECTIONS.WEEKS).doc(addWeekResult._id).get()
+    week = newWeekResult.data
   } catch (err) {
     if (!logic.isDuplicateKeyError(err)) {
       throw err
     }
-    // 重复键错误忽略（周计划已存在）
+    // 重复键错误：周计划已存在，执行同步
+    console.log('[createTemplate] 周计划已存在，执行同步')
+    const syncResult = await syncCurrentWeekInternal(db, openid, templateWithId, currentWeekId, now)
+    if (!syncResult.success) {
+      return syncResult
+    }
+    week = syncResult.data.week
   }
-  
+
+  // 验证同步结果
+  const weekExerciseCount = (week?.days || []).reduce((sum, d) => sum + (d.exercises?.length || 0), 0)
+  console.log('[createTemplate] 周动作总数:', weekExerciseCount)
+
+  if (templateExerciseCount > 0 && weekExerciseCount === 0) {
+    return fail({ code: 'SYNC_FAILED', message: '同步失败：模板有动作但周计划为空' })
+  }
+
   return success({
     templateId,
     weekId: currentWeekId,
-    version: 1
+    version: 1,
+    week
   })
 }
 
 /**
- * 更新用户训练模板
- * 模板更改从下周一生效
+ * 更新用户训练模板并同步当前周
+ * 返回值包含同步后的 week 对象
  */
 async function updateTemplate(db, openid, days) {
   // 校验模板数据
@@ -115,10 +140,10 @@ async function updateTemplate(db, openid, days) {
   if (!validationResult.valid) {
     return fail(validationResult.error)
   }
-  
+
   const now = new Date()
   const normalizedDays = logic.normalizeTemplateDays(days, now)
-  
+
   // 使用事务原子更新 version
   const result = await db.collection(COLLECTIONS.TEMPLATES)
     .where({ openid, status: 'active' })
@@ -129,22 +154,47 @@ async function updateTemplate(db, openid, days) {
         version: db.command.inc(1)
       }
     })
-  
+
   if (result.stats.updated === 0) {
     return fail(TRAINING_ERRORS.TEMPLATE_NOT_FOUND)
   }
-  
-  // 获取更新后的版本号
-  const updated = await db.collection(COLLECTIONS.TEMPLATES)
+
+  // 获取更新后的完整模板
+  const updatedTemplateResult = await db.collection(COLLECTIONS.TEMPLATES)
     .where({ openid, status: 'active' })
-    .field({ version: true })
+    .limit(1)
     .get()
-  
-  const newVersion = updated.data?.[0]?.version || 1
-  
+
+  if (!updatedTemplateResult.data || updatedTemplateResult.data.length === 0) {
+    return fail(TRAINING_ERRORS.TEMPLATE_NOT_FOUND)
+  }
+
+  const template = updatedTemplateResult.data[0]
+  const currentWeekId = time.getWeekId(now)
+
+  // 调试日志
+  const templateExerciseCount = template.days.reduce((sum, d) => sum + (d.exercises?.length || 0), 0)
+  console.log('[updateTemplate] 模板 version:', template.version, '动作总数:', templateExerciseCount)
+  console.log('[updateTemplate] weekId:', currentWeekId)
+
+  // 同步当前周计划
+  const syncResult = await syncCurrentWeekInternal(db, openid, template, currentWeekId, now)
+  if (!syncResult.success) {
+    return syncResult
+  }
+
+  const week = syncResult.data.week
+  const weekExerciseCount = (week?.days || []).reduce((sum, d) => sum + (d.exercises?.length || 0), 0)
+  console.log('[updateTemplate] 同步后周动作总数:', weekExerciseCount)
+
+  if (templateExerciseCount > 0 && weekExerciseCount === 0) {
+    return fail({ code: 'SYNC_FAILED', message: '同步失败：模板有动作但周计划为空' })
+  }
+
   return success({
-    message: '模板已更新，将于下周一生效',
-    version: newVersion
+    message: '模板已更新并同步到当前周',
+    version: template.version,
+    week
   })
 }
 
@@ -881,7 +931,88 @@ async function deleteVideo(db, openid, scopeType, scopeId, videoId) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 当前周同步
+// 当前周同步（内部函数）
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 同步当前周计划（内部版本，供 createTemplate/updateTemplate 调用）
+ * @param {Object} db - 数据库实例
+ * @param {string} openid - 用户标识
+ * @param {Object} template - 已更新的模板对象（含 _id）
+ * @param {string} weekId - 周标识
+ * @param {Date} now - 当前时间
+ * @returns {Object} { success, data: { week } } 或 { success: false, error }
+ */
+async function syncCurrentWeekInternal(db, openid, template, weekId, now) {
+  // 1. 获取当前周计划
+  const weekResult = await db.collection(COLLECTIONS.WEEKS)
+    .where({ openid, weekId })
+    .limit(1)
+    .get()
+
+  if (!weekResult.data || weekResult.data.length === 0) {
+    // 当前周不存在，直接创建
+    const weekSnapshot = logic.buildWeekSnapshot({ template, weekId, now })
+
+    try {
+      const addResult = await db.collection(COLLECTIONS.WEEKS).add({ data: weekSnapshot })
+      const newWeekResult = await db.collection(COLLECTIONS.WEEKS).doc(addResult._id).get()
+      return success({ week: newWeekResult.data })
+    } catch (err) {
+      if (!logic.isDuplicateKeyError(err)) {
+        throw err
+      }
+      // 重复键错误：重新查询
+      const retryResult = await db.collection(COLLECTIONS.WEEKS)
+        .where({ openid, weekId })
+        .limit(1)
+        .get()
+      if (retryResult.data && retryResult.data.length > 0) {
+        // 继续同步已有周计划
+      } else {
+        return fail(TRAINING_ERRORS.INTERNAL_ERROR)
+      }
+    }
+  }
+
+  // 2. 周计划已存在，执行同步
+  const existingWeek = weekResult.data?.[0] || (await db.collection(COLLECTIONS.WEEKS).where({ openid, weekId }).limit(1).get()).data[0]
+
+  const beforeExerciseCount = (existingWeek.days || []).reduce((sum, d) => sum + (d.exercises?.length || 0), 0)
+  console.log('[syncCurrentWeekInternal] 同步前周动作数:', beforeExerciseCount)
+
+  // 使用纯函数计算同步后的 days
+  const syncedDays = logic.syncWeekWithTemplate({
+    template,
+    existingWeek,
+    weekId,
+    now
+  })
+
+  // 3. 更新周计划
+  await db.collection(COLLECTIONS.WEEKS)
+    .doc(existingWeek._id)
+    .update({
+      data: {
+        days: syncedDays,
+        templateVersion: template.version,
+        updatedAt: now
+      }
+    })
+
+  // 4. 返回更新后的周计划
+  const updatedWeekResult = await db.collection(COLLECTIONS.WEEKS)
+    .doc(existingWeek._id)
+    .get()
+
+  const afterExerciseCount = (updatedWeekResult.data?.days || []).reduce((sum, d) => sum + (d.exercises?.length || 0), 0)
+  console.log('[syncCurrentWeekInternal] 同步后周动作数:', afterExerciseCount)
+
+  return success({ week: updatedWeekResult.data })
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 当前周同步（公开接口）
 // ═══════════════════════════════════════════════════════════════
 
 /**
