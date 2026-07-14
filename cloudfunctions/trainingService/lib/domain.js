@@ -271,18 +271,26 @@ async function getOrCreateWeek(db, openid, weekId) {
 
 /**
  * 获取周计划历史列表
+ * 只返回已结束的历史周（weekId < currentWeekId）
  */
 async function getWeekHistory(db, openid, limit = 10, offset = 0) {
+  const currentWeekId = time.getWeekId(new Date())
+  const _ = db.command
+
   const result = await db.collection(COLLECTIONS.WEEKS)
-    .where({ openid })
+    .where({
+      openid,
+      weekId: _.lt(currentWeekId)  // 只查询历史周，排除当前周和未来周
+    })
     .orderBy('weekId', 'desc')
     .skip(offset)
     .limit(limit)
     .get()
-  
+
   return success({
     weeks: result.data || [],
-    total: result.data ? result.data.length : 0
+    total: result.data ? result.data.length : 0,
+    currentWeekId  // 方便前端调试
   })
 }
 

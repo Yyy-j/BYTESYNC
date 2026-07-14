@@ -86,23 +86,37 @@ Page({
         return
       }
 
-      // 有模板，先同步当前周再获取
+      // 有模板，同步当前周并使用返回的 week
       const template = templateResult.template
       const templateExerciseCount = (template.days || []).reduce((sum, d) => sum + (d.exercises?.length || 0), 0)
       console.log('[training] 模板动作数:', templateExerciseCount)
 
+      let weekPlan = null
+
       // 调用同步确保当前周与模板一致
       try {
-        await syncCurrentTrainingWeek()
+        const syncResult = await syncCurrentTrainingWeek()
         console.log('[training] 同步当前周成功')
+        // 优先使用同步返回的 week
+        if (syncResult && syncResult.week) {
+          weekPlan = syncResult.week
+        }
       } catch (syncErr) {
-        console.warn('[training] 同步当前周失败，继续加载:', syncErr)
-        // 同步失败不阻塞加载，getOrCreateTrainingWeek 会返回现有数据
+        console.error('[training] 同步当前周失败:', syncErr)
+        // 同步失败时显示错误，不继续加载旧数据
+        this.setData({
+          state: 'error',
+          errorMsg: syncErr.message || '同步周计划失败，请重试',
+          _isFirstLoad: false
+        })
+        return
       }
 
-      // 获取或创建当前周计划
-      const weekResult = await getOrCreateTrainingWeek()
-      let weekPlan = weekResult.week
+      // 如果同步没有返回 week，fallback 到 getOrCreateTrainingWeek
+      if (!weekPlan) {
+        const weekResult = await getOrCreateTrainingWeek()
+        weekPlan = weekResult.week
+      }
 
       // 标准化：确保 days 和 exercises 是数组
       weekPlan.days = Array.isArray(weekPlan.days) ? weekPlan.days : []

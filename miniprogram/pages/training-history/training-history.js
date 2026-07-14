@@ -2,6 +2,7 @@
 // 展示历史周计划和打卡记录，按周倒序，支持展开查看
 
 const { getTrainingWeekHistory } = require('../../utils/training-api')
+const { getWeekId } = require('../../utils/training-time')
 
 const app = getApp()
 
@@ -42,7 +43,11 @@ Page({
       await app._initPromise
 
       const result = await getTrainingWeekHistory({ limit: PAGE_SIZE, offset: 0 })
-      const weeks = result.weeks || []
+      let weeks = result.weeks || []
+
+      // 前端保护：过滤掉当前周和未来周（后端已过滤，这里是额外保护）
+      const currentWeekId = getWeekId(new Date())
+      weeks = weeks.filter(w => w.weekId < currentWeekId)
 
       // 构建去重 map
       const loadedWeekIds = {}
@@ -82,7 +87,11 @@ Page({
         offset: this.data.offset
       })
 
-      const newWeeks = result.weeks || []
+      let newWeeks = result.weeks || []
+
+      // 前端保护：过滤掉当前周和未来周
+      const currentWeekId = getWeekId(new Date())
+      newWeeks = newWeeks.filter(w => w.weekId < currentWeekId)
 
       // 按 _id 去重
       const loadedWeekIds = { ...this.data.loadedWeekIds }
