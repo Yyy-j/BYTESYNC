@@ -1,6 +1,6 @@
 // pages/record/record.js
-const { addMeal, addMeals, analyzeMeal, analyzeMealByText, deleteCloudFile, getUsersByPairId } = require('../../utils/api')
-const { getCurrentDate, getCurrentTime } = require('../../utils/time')
+const { addMeal, addMeals, analyzeMeal, analyzeMealByText, deleteCloudFile, getUsersByPairId, getYesterdayMealsForReuse } = require('../../utils/api')
+const { getCurrentDate, getCurrentTime, getYesterdayDate } = require('../../utils/time')
 
 const app = getApp()
 
@@ -18,6 +18,9 @@ Page({
     loadingProgress: 0,
     manualExpanded: false,
     manualForm: { name: '', calories: '', protein: '', carbs: '', fat: '' },
+    // 昨天也吃了？（快捷复用模块）
+    yesterdayMeals:        [],
+    isAddingFromYesterday: false,
     shareMode:    'solo',
     sharePreview: { meCalories: 0, taCalories: 0 },
     // 识别后修改：补充提示词再识别
@@ -26,33 +29,6 @@ Page({
     // 识别后修改：直接改数据
     editExpanded: false,
     editForm:     { name: '', calories: '', protein: '', carbs: '', fat: '' },
-  },
-
-  onLoad(options) {
-    // 检查是否有预填数据（从昨天餐食复用）
-    if (options.prefill === '1' && app.globalData.prefillMeal) {
-      const meal = app.globalData.prefillMeal
-      app.globalData.prefillMeal = null  // 用完即清
-
-      const foodData = {
-        name:     meal.name || '复用记录',
-        calories: Math.round(Number(meal.calories) || 0),
-        protein:  Math.round(Number(meal.protein)  || 0),
-        carbs:    Math.round(Number(meal.carbs)    || 0),
-        fat:      Math.round(Number(meal.fat)      || 0),
-        dishes:   Array.isArray(meal.dishes) ? meal.dishes : [],
-        imageUrl: '',
-        hint:     '',
-        source:   'reuse',
-      }
-      this.setData({
-        baseFoodData:   foodData,
-        foodData:       foodData,
-        portionRatio:   1,
-        state:          'result',
-        manualExpanded: false,
-      })
-    }
   },
 
   onHintInput(e) {
@@ -188,8 +164,61 @@ Page({
     app._initPromise.then(() => {
       if (!app.globalData.pairId) {
         wx.redirectTo({ url: '/pages/pairing/pairing' })
+        return
       }
+      this._loadYesterdayMeals()
     })
+  },
+
+  /**
+   * 加载昨天的餐食记录（仅当前用户，最多 3 条），用于「昨天也吃了？」快捷复用
+   */
+  _loadYesterdayMeals() {
+    const { pairId, openid } = app.globalData
+    if (!pairId || !openid) return
+
+    const yesterdayStr = getYesterdayDate()
+    getYesterdayMealsForReuse(yesterdayStr, pairId, openid)
+      .then(res => {
+        const meals = (res.data || []).map(m => ({
+          id:       m._id,
+          name:     m.name || '记录',
+          calories: m.calories || 0,
+          protein:  m.protein  || 0,
+          carbs:    m.carbs    || 0,
+          fat:      m.fat      || 0,
+        }))
+        this.setData({ yesterdayMeals: meals })
+      })
+      .catch(err => {
+        console.warn('[record] 加载昨天餐食失败', err)
+        this.setData({ yesterdayMeals: [] })
+      })
+  },
+
+  /**
+   * 点击「添加」：把昨天这条餐食填入手动记录表单，展开表单供用户确认/修改后再保存
+   */
+  onAddYesterdayMeal(e) {
+    if (this.data.isAddingFromYesterday) return
+
+    const idx  = e.currentTarget.dataset.idx
+    const meal = this.data.yesterdayMeals[idx]
+    if (!meal) return
+
+    this.setData({
+      isAddingFromYesterday: true,
+      manualExpanded: true,
+      manualForm: {
+        name:     meal.name || '',
+        calories: meal.calories ? String(meal.calories) : '',
+        protein:  meal.protein  ? String(meal.protein)  : '',
+        carbs:    meal.carbs    ? String(meal.carbs)    : '',
+        fat:      meal.fat      ? String(meal.fat)      : '',
+      },
+    })
+    wx.showToast({ title: '已填入昨天的记录，可修改后保存', icon: 'none', duration: 1500 })
+    this.setData({ isAddingFromYesterday: false })
   },
 
   // 文字描述直接识别

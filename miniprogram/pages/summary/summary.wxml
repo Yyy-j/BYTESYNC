@@ -71,24 +71,6 @@
     </view>
   </view>
 
-  <!-- ── 今天也吃了？（复用昨天餐食） ── -->
-  <view wx:if="{{yesterdayMeals.length > 0}}" class="section">
-    <text class="section-label">今天也吃了？</text>
-    <view class="yesterday-list">
-      <view
-        wx:for="{{yesterdayMeals}}"
-        wx:key="id"
-        class="yesterday-item"
-      >
-        <view class="yesterday-info">
-          <text class="yesterday-name">{{item.name}}</text>
-          <text class="yesterday-cal">{{item.calories}} kcal</text>
-        </view>
-        <view class="yesterday-add-btn" data-idx="{{index}}" bind:tap="onAddYesterdayMeal">添加</view>
-      </view>
-    </view>
-  </view>
-
   <!-- ── 今日记录列表 ── -->
   <view class="section">
     <text class="section-label">今日记录</text>

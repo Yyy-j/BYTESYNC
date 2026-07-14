@@ -53,6 +53,24 @@
           <button class="manual-save-btn" bind:tap="onManualSave">生成记录</button>
         </view>
       </view>
+
+      <!-- 昨天也吃了？（快捷复用昨天的餐食） -->
+      <view wx:if="{{yesterdayMeals.length > 0}}" class="yesterday-section">
+        <text class="section-label">昨天也吃了？</text>
+        <view class="yesterday-list">
+          <view
+            wx:for="{{yesterdayMeals}}"
+            wx:key="id"
+            class="yesterday-item"
+          >
+            <view class="yesterday-info">
+              <text class="yesterday-name">{{item.name}}</text>
+              <text class="yesterday-cal">{{item.calories}} kcal</text>
+            </view>
+            <view class="yesterday-add-btn" data-idx="{{index}}" bind:tap="onAddYesterdayMeal">添加</view>
+          </view>
+        </view>
+      </view>
     </view>
 
   </view>

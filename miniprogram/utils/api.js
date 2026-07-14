@@ -18,6 +18,16 @@ const getMealsByDate = (dateStr, pairId) => {
     .get()
 }
 
+// 「昨天也吃了？」复用模块专用：只查当前用户自己昨天的记录，最多 3 条
+const getYesterdayMealsForReuse = (dateStr, pairId, openid) => {
+  const db = wx.cloud.database()
+  return db.collection('meals')
+    .where({ date: dateStr, pairId, userId: openid })
+    .orderBy('time', 'desc')
+    .limit(3)
+    .get()
+}
+
 // ── Users ─────────────────────────────────────────────
 
 const getUserByOpenId = (openid) => {
@@ -145,7 +155,7 @@ const updateUserGoals = ({ openid, goals }) => {
 
 module.exports = {
   // meals
-  addMeal, addMeals, getMealsByDate, updateMeal,
+  addMeal, addMeals, getMealsByDate, getYesterdayMealsForReuse, updateMeal,
   // users
   getUserByOpenId, getUsersByPairId, createUser, updateUserPair, updateUserGoals,
   // pairs
