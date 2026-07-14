@@ -37,6 +37,8 @@ Page({
     goalEditing: false,
     goalInput: '',
     summaryMessage: { title: '', detail: '' },
+    // 昨天餐食（用于快捷复用）
+    yesterdayMeals: [],
     // 编辑弹层：直接改数据
     editMealVisible: false,
     editingMealId:   '',
@@ -77,7 +79,77 @@ Page({
       const { currentDate } = this.data
       if (!currentDate) return
       this._loadData(currentDate)
+      // 仅在查看今天时加载昨天餐食
+      const todayStr = formatDate(new Date())
+      if (currentDate === todayStr) {
+        this._loadYesterdayMeals()
+      } else {
+        this.setData({ yesterdayMeals: [] })
+      }
     })
+  },
+
+  /**
+   * 获取昨天日期字符串（本地时间）
+   */
+  _getYesterdayDate() {
+    const d = new Date()
+    d.setDate(d.getDate() - 1)
+    return formatDate(d)
+  },
+
+  /**
+   * 加载昨天的餐食记录（仅当前用户）
+   */
+  _loadYesterdayMeals() {
+    const pairId = app.globalData.pairId
+    const myOpenid = app.globalData.openid
+    if (!pairId || !myOpenid) return
+
+    const yesterdayStr = this._getYesterdayDate()
+    getMealsByDate(yesterdayStr, pairId)
+      .then(res => {
+        const allMeals = res.data || []
+        // 只显示当前用户自己的记录，最多 3 条
+        const myMeals = allMeals
+          .filter(m => m.userId === myOpenid)
+          .slice(0, 3)
+          .map(m => ({
+            id:       m._id,
+            name:     m.name || '记录',
+            calories: m.calories || 0,
+            protein:  m.protein  || 0,
+            carbs:    m.carbs    || 0,
+            fat:      m.fat      || 0,
+            dishes:   Array.isArray(m.dishes) ? m.dishes : [],
+          }))
+        this.setData({ yesterdayMeals: myMeals })
+      })
+      .catch(err => {
+        console.warn('[summary] 加载昨天餐食失败', err)
+        this.setData({ yesterdayMeals: [] })
+      })
+  },
+
+  /**
+   * 点击复用昨天餐食
+   */
+  onAddYesterdayMeal(e) {
+    const idx = e.currentTarget.dataset.idx
+    const meal = this.data.yesterdayMeals[idx]
+    if (!meal) return
+
+    // 存入 app.globalData 供 record 页读取
+    app.globalData.prefillMeal = {
+      name:     meal.name,
+      calories: meal.calories,
+      protein:  meal.protein,
+      carbs:    meal.carbs,
+      fat:      meal.fat,
+      dishes:   meal.dishes,
+      source:   'reuse',
+    }
+    wx.navigateTo({ url: '/pages/record/record?prefill=1' })
   },
 
   _loadData(dateStr) {

@@ -28,7 +28,32 @@ Page({
     editForm:     { name: '', calories: '', protein: '', carbs: '', fat: '' },
   },
 
-  onLoad() {},
+  onLoad(options) {
+    // 检查是否有预填数据（从昨天餐食复用）
+    if (options.prefill === '1' && app.globalData.prefillMeal) {
+      const meal = app.globalData.prefillMeal
+      app.globalData.prefillMeal = null  // 用完即清
+
+      const foodData = {
+        name:     meal.name || '复用记录',
+        calories: Math.round(Number(meal.calories) || 0),
+        protein:  Math.round(Number(meal.protein)  || 0),
+        carbs:    Math.round(Number(meal.carbs)    || 0),
+        fat:      Math.round(Number(meal.fat)      || 0),
+        dishes:   Array.isArray(meal.dishes) ? meal.dishes : [],
+        imageUrl: '',
+        hint:     '',
+        source:   'reuse',
+      }
+      this.setData({
+        baseFoodData:   foodData,
+        foodData:       foodData,
+        portionRatio:   1,
+        state:          'result',
+        manualExpanded: false,
+      })
+    }
+  },
 
   onHintInput(e) {
     this.setData({ aiHint: e.detail.value })
