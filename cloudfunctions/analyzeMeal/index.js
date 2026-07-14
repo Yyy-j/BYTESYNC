@@ -5,8 +5,10 @@ const https  = require('https')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
 // ── 配置 ──────────────────────────────────────────────────
-const QWEN_KEY      = process.env.QWEN_API_KEY
-const QWEN_ENDPOINT = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions'
+const ZHIPU_KEY      = process.env.ZHIPU_API_KEY
+const ZHIPU_ENDPOINT = 'https://open.bigmodel.cn/api/paas/v4/chat/completions'
+
+
 
 // ── 封装 HTTPS POST ────────────────────────────────────────
 function httpsPost(url, extraHeaders, bodyStr) {
@@ -197,9 +199,9 @@ function refineBreakdown(nutrition) {
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms))
 
 // ── 图片模式：单次识别 ─────────────────────────────────────
-async function callQwen(base64, hint) {
+async function callZhipu(base64, hint) {
   const body = JSON.stringify({
-    model: 'qwen-vl-max',
+    model: 'glm-4.6v-flash',
     messages: [
       {
         role: 'user',
@@ -240,8 +242,8 @@ async function callQwen(base64, hint) {
     ],
   })
 
-  const apiRes = await httpsPost(QWEN_ENDPOINT, {
-    Authorization: `Bearer ${QWEN_KEY}`,
+  const apiRes = await httpsPost(ZHIPU_ENDPOINT, {
+    Authorization: `Bearer ${ZHIPU_KEY}`,
   }, body)
 
   if (!apiRes.choices || !apiRes.choices[0]) {
@@ -256,9 +258,9 @@ async function callQwen(base64, hint) {
 }
 
 // ── 文字模式：单次识别 ─────────────────────────────────────
-async function callQwenText(text) {
+async function callZhipuText(text) {
   const body = JSON.stringify({
-    model: 'qwen-max',
+    model: 'glm-4.7-flash',
     messages: [
       {
         role: 'user',
@@ -282,8 +284,8 @@ async function callQwenText(text) {
     ],
   })
 
-  const apiRes = await httpsPost(QWEN_ENDPOINT, {
-    Authorization: `Bearer ${QWEN_KEY}`,
+  const apiRes = await httpsPost(ZHIPU_ENDPOINT, {
+    Authorization: `Bearer ${ZHIPU_KEY}`,
   }, body)
 
   if (!apiRes.choices || !apiRes.choices[0]) {
@@ -301,8 +303,8 @@ async function callQwenText(text) {
 exports.main = async (event) => {
   const { fileID, hint = '', text = '', mode = 'image' } = event
 
-  if (!QWEN_KEY) {
-    return { success: false, error: 'QWEN_API_KEY 未配置' }
+  if (!ZHIPU_KEY) {
+    return { success: false, error: 'ZHIPU_API_KEY 未配置' }
   }
 
   try {
@@ -311,11 +313,11 @@ exports.main = async (event) => {
       if (!text.trim()) return { success: false, error: '文字描述不能为空' }
       let nutrition
       try {
-        nutrition = await callQwenText(text)
+        nutrition = await callZhipuText(text)
       } catch (firstErr) {
         console.warn('[analyzeMeal] 文字模式首次失败，300ms 后重试:', firstErr.message)
         await delay(300)
-        nutrition = await callQwenText(text)
+        nutrition = await callZhipuText(text)
       }
       return { success: true, ...nutrition }
     }
@@ -330,11 +332,11 @@ exports.main = async (event) => {
     // 2. 调用 API，失败后等 800ms 自动重试一次
     let nutrition
     try {
-      nutrition = await callQwen(base64, hint)
+      nutrition = await callZhipu(base64, hint)
     } catch (firstErr) {
       console.warn('[analyzeMeal] 首次识别失败，300ms 后重试:', firstErr.message)
       await delay(300)
-      nutrition = await callQwen(base64, hint)
+      nutrition = await callZhipu(base64, hint)
     }
 
     return { success: true, ...nutrition }

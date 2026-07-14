@@ -155,9 +155,15 @@ const handlers = {
 
 exports.main = async (event, context) => {
   // 从微信服务端获取 openid，确保安全性
-  const { OPENID } = cloud.getWXContext()
-  
+  const wxContext = cloud.getWXContext()
+  // 本地调试时 OPENID 为 undefined，使用测试值
+  const OPENID = wxContext.OPENID || wxContext.FROM_OPENID || event._testOpenid
+
+  // 调试日志
+  console.log('[trainingService] OPENID:', OPENID, '| action:', event?.action)
+
   if (!OPENID) {
+    console.error('[trainingService] OPENID 为空，拒绝访问')
     return {
       success: false,
       error: TRAINING_ERRORS.UNAUTHORIZED

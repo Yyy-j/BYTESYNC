@@ -15,9 +15,15 @@ const CLOUD_FUNCTION = 'trainingService'
  * @returns {Promise<Object>} 返回 result.data
  */
 const callTrainingService = async (action, payload = {}) => {
+  // 获取 app 实例中的 openid（用于本地调试时传递）
+  const app = getApp()
+  const openid = app?.globalData?.openid
+
   const result = await callCloudFunction(CLOUD_FUNCTION, {
     action,
-    payload
+    payload,
+    // 本地调试时云函数无法获取 OPENID，传递前端已获取的 openid
+    _testOpenid: openid
   })
   
   if (!result || !result.success) {
